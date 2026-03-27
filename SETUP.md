@@ -1,125 +1,97 @@
-# Long Night — Setup pro nového developera
+# Long Night — Setup pro Mateje (krok po kroku)
 
-Krok po kroku jak nastavit projekt na novem PC.
-
----
-
-## 1. Nainstaluj Node.js
-
-Stahni a nainstaluj z: https://nodejs.org/ (LTS verze)
-
-Po instalaci over v terminalu:
-```bash
-node --version
-```
+Kompletni navod jak rozjet projekt. Vse pres klikani, zadny terminal dokud to neni nutne.
 
 ---
 
-## 2. Nainstaluj Bun (package manager)
+## KROK 1: Stahni a nainstaluj programy
 
-```bash
-curl -fsSL https://bun.sh/install | bash
-```
+Otevri tyto 4 odkazy a vsechno stahni a nainstaluj (vzdy klikni na "Download" / "Install"):
 
-Restartuj terminal, pak over:
-```bash
-bun --version
-```
+### a) Node.js
+- Jdi na: https://nodejs.org/
+- Klikni na velke zelene tlacitko "Download Node.js (LTS)"
+- Otevri stazeny soubor a proklikej instalaci (Next, Next, Install, Finish)
 
----
+### b) Bun
+- Jdi na: https://bun.sh/
+- Klikni "Install" — na Windows stahne installer, na Mac stahne pkg
+- Proklikej instalaci
 
-## 3. Nainstaluj Git
+### c) Git
+- Jdi na: https://git-scm.com/downloads
+- Vyber svuj system (Windows / Mac)
+- Stahni a nainstaluj (vsechno nech na vychozich hodnotach, jen klikej Next)
 
-**Mac:**
-```bash
-xcode-select --install
-```
+### d) GitHub Desktop
+- Jdi na: https://desktop.github.com/
+- Stahni a nainstaluj
+- Po spusteni se prihlas svym GitHub uctem (pokud nemas, vytvor si ho na github.com)
 
-**Windows:**
-Stahni z: https://git-scm.com/downloads
-
-Over:
-```bash
-git --version
-```
-
----
-
-## 4. Nainstaluj Claude Code
-
-```bash
-npm install -g @anthropic-ai/claude-code
-```
-
-Pak spust:
-```bash
-claude
-```
-
-Pri prvnim spusteni se prihlasis pres Anthropic ucet (potrebujes Max plan nebo API klic).
+### e) Claude Code
+- Jdi na: https://claude.ai/download
+- Stahni Claude for Desktop
+- Po instalaci otevri aplikaci a prihlas se (potrebujes Claude Max plan)
 
 ---
 
-## 5. Nastav pristup ke GitHubu
+## KROK 2: Jakub te prida do repa
 
-Jakub ti musi pridat jako collaboratora:
-- GitHub repo: https://github.com/liftykreatincz/LongNight1
-- Settings > Collaborators > Add people > zadej tvuj GitHub username nebo email
-
-Prijmi pozvanku co ti prijde na email.
-
-### Nastav SSH klic (doporuceno):
-
-```bash
-ssh-keygen -t ed25519 -C "tvuj@email.com"
-```
-
-Stiskni Enter na vsechny otazky (vychozi cesta, bez hesla).
-
-Zkopiruj klic:
-```bash
-# Mac:
-cat ~/.ssh/id_ed25519.pub | pbcopy
-
-# Windows (Git Bash):
-cat ~/.ssh/id_ed25519.pub | clip
-```
-
-Pridej ho na GitHub:
-1. Jdi na https://github.com/settings/keys
-2. Klikni "New SSH key"
-3. Vloz zkopirovanej klic
-4. Uloz
+Jakub musi udelat tohle:
+1. Jit na https://github.com/liftykreatincz/LongNight1/settings/access
+2. Kliknout "Add people"
+3. Zadat tvuj GitHub email nebo username
+4. Ty pak dostanes email s pozvankou — klikni "Accept"
 
 ---
 
-## 6. Naklonuj projekt
+## KROK 3: Naklonuj projekt pres GitHub Desktop
 
-```bash
-cd ~/Desktop
-git clone git@github.com:liftykreatincz/LongNight1.git
-cd LongNight1
-```
+1. Otevri **GitHub Desktop**
+2. Klikni **File > Clone Repository**
+3. Vyber zalocku **URL**
+4. Vloz: `https://github.com/liftykreatincz/LongNight1.git`
+5. Local Path vyber kam chces ulozit (napr. Desktop)
+6. Klikni **Clone**
+
+Projekt se stahne na tvuj pocitac.
 
 ---
 
-## 7. Nainstaluj zavislosti
+## KROK 4: Otevri terminal ve slozce projektu
 
-```bash
+### Na Mac:
+1. Otevri **Terminal** (Finder > Applications > Utilities > Terminal)
+2. Napis `cd ` (cd a mezera) a pak pretahni slozku LongNight1 z Finderu do terminalu
+3. Stiskni Enter
+
+### Na Windows:
+1. Otevri slozku LongNight1 v Przkumniku
+2. Klikni do adresniho radku nahore
+3. Napis `cmd` a stiskni Enter (otevre se terminal v te slozce)
+
+### Nebo v GitHub Desktop:
+- Klikni **Repository > Open in Terminal**
+
+---
+
+## KROK 5: Nainstaluj zavislosti
+
+V terminalu (ve slozce projektu) napis:
+
+```
 bun install
 ```
 
+Pocekej az se vse nainstaluje.
+
 ---
 
-## 8. Vytvor .env.local
+## KROK 6: Vytvor soubor .env.local
 
-V korenovem adresari projektu vytvor soubor `.env.local`:
-
-```bash
-touch .env.local
-```
-
-Otevri ho v editoru a vloz:
+1. Ve slozce projektu (LongNight1) vytvor novy textovy soubor
+2. Pojmenuj ho presne: `.env.local` (vcetne tecky na zacatku)
+3. Otevri ho v Poznamkovem bloku / TextEdit a vloz tento text:
 
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://ghodnzarypflppzzsmhm.supabase.co
@@ -128,55 +100,66 @@ SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhY
 ANTHROPIC_API_KEY=
 ```
 
-ANTHROPIC_API_KEY doplnite pozdeji.
+4. Uloz soubor
+
+**TIP pro Windows:** Pokud nevidis soubory zacinajici teckou, zapni v Pruzkumniku "Zobrazit > Skryte polozky"
+
+**TIP pro Mac TextEdit:** Pouzij Format > Make Plain Text pred ulozenim
 
 ---
 
-## 9. Spust dev server
+## KROK 7: Spust appku lokalne
 
-```bash
+V terminalu (ve slozce projektu):
+
+```
 bun run dev
 ```
 
-Appka pobezi na http://localhost:3000
+Otevri prohlizec a jdi na: **http://localhost:3000**
 
 Prihlasovaci udaje:
-- Email: matejkrejsa7@gmail.com
-- Heslo: Ahoj12345!
+- **Email:** matejkrejsa7@gmail.com
+- **Heslo:** Ahoj12345!
 
 ---
 
-## 10. Spust Claude Code
+## KROK 8: Spust Claude Code
 
-V novem terminalu (v adresari projektu):
+1. Otevri novy terminal (nech ten prvni bezet)
+2. Prejdi do slozky projektu (stejne jako v Kroku 4)
+3. Napis:
 
-```bash
-cd ~/Desktop/LongNight1
+```
 claude
 ```
 
-Ted muzes zadavat prikazy Claude Code a upravovat projekt.
+4. Claude Code se spusti a muzes mu zadavat ukoly ("uprav tuto stranku", "pridej tlacitko" atd.)
 
 ---
 
-## Jak funguje workflow
+## Jak ukladat zmeny (pres GitHub Desktop)
 
-1. Upravis kod (rucne nebo pres Claude Code)
-2. Commitnes zmeny: `git add . && git commit -m "popis zmeny"`
-3. Pushnes na GitHub: `git push`
-4. Vercel automaticky nasadi novou verzi na https://long-night1.vercel.app
+1. Po uprave kodu otevri **GitHub Desktop**
+2. Vlevo uvidis zmenene soubory
+3. Dole napis kratky popis co jsi zmenil (napr. "upravil login stranku")
+4. Klikni **Commit to main**
+5. Klikni **Push origin** (nahore)
+6. Vercel automaticky nasadi novou verzi behem par minut
 
-### Pred praci vzdy stahni posledni zmeny:
-
-```bash
-git pull
-```
+### DULEZITE: Pred praci vzdy klikni "Fetch origin" / "Pull" v GitHub Desktop — stahne posledni zmeny od Jakuba.
 
 ---
 
-## Dulezite
+## Appka je live na
 
-- **NIKDY** necommituj `.env.local` (obsahuje tajne klice)
-- Vzdy pred praci udelej `git pull`
-- Po praci udelej `git push`
-- Appka je live na: https://long-night1.vercel.app
+https://long-night1.vercel.app
+
+---
+
+## Prihlasovaci udaje do appky
+
+| Kdo | Email | Heslo |
+|-----|-------|-------|
+| Jakub | business@lifty.cz | Ahoj12345! |
+| Matej | matejkrejsa7@gmail.com | Ahoj12345! |
