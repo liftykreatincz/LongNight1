@@ -36,7 +36,7 @@ export function AddShopDialog({ children }: { children: React.ReactNode }) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogTrigger render={children as React.ReactElement}></DialogTrigger>
       <DialogContent className="border-white/[0.08] bg-gray-950 text-white sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-white">Add Eshop</DialogTitle>
