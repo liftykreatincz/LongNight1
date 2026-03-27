@@ -128,3 +128,62 @@
     @apply font-sans;
   }
 }
+
+/* Long Night — Login page animations */
+@keyframes glow-pulse {
+  0%, 100% {
+    text-shadow:
+      0 0 20px rgba(59, 130, 246, 0.5),
+      0 0 60px rgba(59, 130, 246, 0.3),
+      0 0 80px rgba(59, 130, 246, 0.1);
+  }
+  50% {
+    text-shadow:
+      0 0 40px rgba(59, 130, 246, 0.8),
+      0 0 100px rgba(59, 130, 246, 0.5),
+      0 0 140px rgba(59, 130, 246, 0.2);
+  }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes star-twinkle {
+  0%, 100% { opacity: 0.15; }
+  50% { opacity: 1; }
+}
+
+@keyframes star-twinkle-slow {
+  0%, 100% { opacity: 0.1; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes subtle-drift {
+  0%, 100% { transform: translateY(0) translateX(0); }
+  33% { transform: translateY(-2px) translateX(1px); }
+  66% { transform: translateY(1px) translateX(-1px); }
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 3s ease-in-out infinite;
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+.animate-star-twinkle {
+  animation: star-twinkle var(--duration, 3s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+
+.animate-star-twinkle-slow {
+  animation: star-twinkle-slow var(--duration, 5s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+
+.animate-subtle-drift {
+  animation: subtle-drift 8s ease-in-out infinite;
+}
