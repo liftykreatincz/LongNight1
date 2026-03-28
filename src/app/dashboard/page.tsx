@@ -35,7 +35,7 @@ export default async function DashboardPage() {
           </p>
         </div>
         <AddShopDialog>
-          <button className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-blue-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-600/20 transition-all hover:shadow-blue-500/40 hover:brightness-110">
+          <button className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-red-600 to-red-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-red-600/20 transition-all hover:shadow-red-500/40 hover:brightness-110">
             <Plus className="h-4 w-4" />
             Add Eshop
           </button>
@@ -89,7 +89,7 @@ export default async function DashboardPage() {
             performance.
           </p>
           <AddShopDialog>
-            <button className="mt-6 flex items-center gap-2 rounded-lg bg-gradient-to-r from-green-600 to-green-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-green-600/20 transition-all hover:shadow-green-500/40 hover:brightness-110">
+            <button className="mt-6 flex items-center gap-2 rounded-lg bg-gradient-to-r from-red-600 to-red-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-red-600/20 transition-all hover:shadow-red-500/40 hover:brightness-110">
               <Plus className="h-4 w-4" />
               Add your first shop
             </button>
