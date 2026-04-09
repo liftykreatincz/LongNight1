@@ -276,6 +276,9 @@ export async function POST(request: Request) {
       const videoViews3s = getActionValue(actions, "video_view");
       const videoThruplay = getActionValue(actions, "video_play");
 
+      const linkClicks = getActionValue(actions, "link_click");
+      const landingPageViews = getActionValue(actions, "landing_page_view");
+
       const videoId =
         ad.creative?.object_story_spec?.video_data?.video_id;
       const videoUrl = videoId
@@ -308,6 +311,8 @@ export async function POST(request: Request) {
         cost_per_add_to_cart: costPerAddToCart,
         roas,
         purchase_revenue: purchaseRevenue,
+        link_clicks: linkClicks,
+        landing_page_views: landingPageViews,
         video_views_3s: videoViews3s,
         video_thruplay: videoThruplay,
         date_start: insight?.date_start ?? null,
