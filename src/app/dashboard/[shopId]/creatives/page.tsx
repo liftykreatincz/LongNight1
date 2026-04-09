@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useCallback, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { cs } from "date-fns/locale";
@@ -26,6 +27,7 @@ import {
   Table as TableIcon,
   Swords,
   ListTree,
+  BarChart3,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -1132,6 +1134,34 @@ export default function CreativesPage() {
     }
   }, [viewMode]);
 
+  const [recomputing, setRecomputing] = useState(false);
+  const queryClient = useQueryClient();
+
+  async function handleRecomputeBenchmarks() {
+    setRecomputing(true);
+    try {
+      const res = await fetch("/api/benchmarks/recompute", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ shopId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Recompute failed");
+      const fmtS = (r: { sampleSize: number; isDefault: boolean }) =>
+        r.isDefault ? `${r.sampleSize} (výchozí)` : `${r.sampleSize}`;
+      toast.success(
+        `Benchmarky aktualizované · image ${fmtS(data.image)} · video ${fmtS(
+          data.video
+        )}`
+      );
+      queryClient.invalidateQueries({ queryKey: ["shop-benchmarks", shopId] });
+    } catch (e) {
+      toast.error(`Chyba: ${(e as Error).message}`);
+    } finally {
+      setRecomputing(false);
+    }
+  }
+
   const handleSync = () => {
     syncMutation.mutate(undefined, {
       onSuccess: (data: Record<string, unknown>) => {
@@ -1390,6 +1420,20 @@ export default function CreativesPage() {
             currentValue={cpaTarget}
             isFallback={cpaIsFallback}
           />
+          <button
+            type="button"
+            onClick={handleRecomputeBenchmarks}
+            disabled={recomputing}
+            className="inline-flex items-center gap-1.5 rounded-full border border-[#d2d2d7] bg-white px-3 py-1.5 text-xs font-medium text-[#1d1d1f] hover:bg-[#f5f5f7] disabled:opacity-50"
+            title="Přepočítat benchmarky z historických dat"
+          >
+            {recomputing ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <BarChart3 className="h-3.5 w-3.5" />
+            )}
+            Přepočítat benchmarky
+          </button>
         </div>
       </div>
 
