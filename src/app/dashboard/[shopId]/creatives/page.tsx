@@ -2,7 +2,12 @@
 
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useParams } from "next/navigation";
+import {
+  useParams,
+  useSearchParams,
+  useRouter,
+  usePathname,
+} from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { cs } from "date-fns/locale";
 import Link from "next/link";
@@ -52,6 +57,7 @@ import { useShopBenchmarks } from "@/hooks/useShopBenchmarks";
 import { useShopCpaTarget } from "@/hooks/useShopCpaTarget";
 import { EngagementBadge } from "@/components/creatives/engagement-badge";
 import { CpaTargetPopover } from "@/components/creatives/cpa-target-popover";
+import type { CampaignType } from "@/lib/campaign-classifier";
 import type { ScoredCreativeRow } from "./types";
 
 /* ── Helpers ── */
@@ -74,6 +80,16 @@ const typeLabels: Record<TypeFilter, string> = {
   all: "Vše",
   video: "Video",
   image: "Fotka",
+};
+
+type CampaignTypeFilter = "all" | CampaignType;
+
+const campaignTypeLabels: Record<CampaignTypeFilter, string> = {
+  all: "Vše",
+  evergreen: "Evergreen",
+  sale: "Sale",
+  seasonal: "Sezónní",
+  unknown: "Neklasifikováno",
 };
 
 const sortLabels: Record<SortKey, string> = {
@@ -1082,6 +1098,23 @@ export default function CreativesPage() {
   const params = useParams<{ shopId: string }>();
   const shopId = params.shopId;
 
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const campaignTypeFilter = (searchParams.get("campaign_type") ??
+    "all") as CampaignTypeFilter;
+
+  const setCampaignTypeFilter = useCallback(
+    (v: CampaignTypeFilter) => {
+      const p = new URLSearchParams(searchParams.toString());
+      if (v === "all") p.delete("campaign_type");
+      else p.set("campaign_type", v);
+      router.replace(`${pathname}?${p.toString()}`);
+    },
+    [searchParams, router, pathname]
+  );
+
   const { data: creatives, isLoading, error } = useCreativeAnalysis(shopId);
   const syncMutation = useSyncCreatives(shopId);
   const analyzeMutation = useAnalyzeCreative(shopId);
@@ -1220,6 +1253,9 @@ export default function CreativesPage() {
     if (typeFilter !== "all") {
       result = result.filter((c) => c.creativeType === typeFilter);
     }
+    if (campaignTypeFilter !== "all") {
+      result = result.filter((c) => c.campaignType === campaignTypeFilter);
+    }
     if (actionFilter !== null) {
       result = result.filter((c) => c.engagement.actionLabel === actionFilter);
     }
@@ -1244,6 +1280,7 @@ export default function CreativesPage() {
     scored,
     statusFilter,
     typeFilter,
+    campaignTypeFilter,
     actionFilter,
     searchQuery,
     sortKey,
@@ -1486,6 +1523,25 @@ export default function CreativesPage() {
             </button>
           );
         })}
+
+        <div className="w-px h-6 bg-[#d2d2d7] mx-1" />
+
+        {(Object.keys(campaignTypeLabels) as CampaignTypeFilter[]).map(
+          (key) => (
+            <button
+              key={key}
+              onClick={() => setCampaignTypeFilter(key)}
+              className={cn(
+                "rounded-full px-3.5 py-1.5 text-sm font-semibold border transition-colors",
+                campaignTypeFilter === key
+                  ? "bg-[#0071e3] text-white border-[#0071e3]"
+                  : "bg-white border-[#d2d2d7] text-[#1d1d1f] hover:bg-[#f5f5f7]"
+              )}
+            >
+              {campaignTypeLabels[key]}
+            </button>
+          )
+        )}
 
         <div className="w-px h-6 bg-[#d2d2d7] mx-1" />
 
