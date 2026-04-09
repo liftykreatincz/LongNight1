@@ -75,15 +75,37 @@ export function useCreativeAnalysis(shopId: string) {
     retry: 1,
     staleTime: 60_000,
     queryFn: async (): Promise<CreativeRow[]> => {
-      const { data, error } = await supabase
-        .from("meta_ad_creatives")
-        .select("*, meta_ad_campaigns(campaign_type, campaign_type_source)")
-        .eq("shop_id", shopId)
-        .order("spend", { ascending: false });
+      // Fetch creatives and campaigns in parallel — no FK in schema cache, so
+      // we merge campaign_type client-side by campaign_id.
+      const [creativesRes, campaignsRes] = await Promise.all([
+        supabase
+          .from("meta_ad_creatives")
+          .select("*")
+          .eq("shop_id", shopId)
+          .order("spend", { ascending: false }),
+        supabase
+          .from("meta_ad_campaigns")
+          .select("id, campaign_type, campaign_type_source")
+          .eq("shop_id", shopId),
+      ]);
 
-      if (error) throw error;
+      if (creativesRes.error) throw creativesRes.error;
+      if (campaignsRes.error) throw campaignsRes.error;
 
-      return (data ?? []).map((r: Record<string, unknown>) => ({
+      const campaignMap = new Map<
+        string,
+        { campaign_type?: string; campaign_type_source?: string }
+      >();
+      for (const c of campaignsRes.data ?? []) {
+        campaignMap.set(c.id as string, {
+          campaign_type: c.campaign_type as string | undefined,
+          campaign_type_source: c.campaign_type_source as string | undefined,
+        });
+      }
+
+      return (creativesRes.data ?? []).map((r: Record<string, unknown>) => {
+        const campaignMeta = campaignMap.get((r.campaign_id as string) || "");
+        return {
         adId: r.ad_id as string,
         adName: (r.ad_name as string) || "",
         campaignId: (r.campaign_id as string) || "",
@@ -127,23 +149,16 @@ export function useCreativeAnalysis(shopId: string) {
             ? JSON.parse(r.ai_analysis)
             : (r.ai_analysis as CreativeAnalysis)
           : null,
-        campaignType: ((
-          r.meta_ad_campaigns as
-            | { campaign_type?: string; campaign_type_source?: string }
-            | null
-            | undefined
-        )?.campaign_type ?? "unknown") as CampaignType,
-        campaignTypeSource: ((
-          r.meta_ad_campaigns as
-            | { campaign_type?: string; campaign_type_source?: string }
-            | null
-            | undefined
-        )?.campaign_type_source ?? "auto") as "auto" | "manual",
+        campaignType: (campaignMeta?.campaign_type ?? "unknown") as CampaignType,
+        campaignTypeSource: (campaignMeta?.campaign_type_source ?? "auto") as
+          | "auto"
+          | "manual",
         videoDurationSeconds:
           r.video_duration_seconds != null
             ? Number(r.video_duration_seconds)
             : null,
-      }));
+        };
+      });
     },
   });
 }

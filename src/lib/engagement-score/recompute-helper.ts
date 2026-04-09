@@ -36,7 +36,7 @@ export async function recomputeBenchmarksForShop(
   ).toISOString();
 
   const selectCols =
-    "creative_type, spend, impressions, clicks, link_clicks, purchases, purchase_revenue, video_views_3s, video_thruplay, video_plays, video_avg_watch_time, video_duration_seconds, cost_per_purchase, cpm, date_stop, meta_ad_campaigns(campaign_type)";
+    "creative_type, spend, impressions, clicks, link_clicks, purchases, purchase_revenue, video_views_3s, video_thruplay, video_plays, video_avg_watch_time, video_duration_seconds, cost_per_purchase, cpm, date_stop, campaign_id";
 
   // 1. Try rolling window
   let { data: rows } = await supabase
@@ -54,6 +54,19 @@ export async function recomputeBenchmarksForShop(
     rows = allTime.data ?? [];
   }
 
+  // 1b. Separately fetch campaign types (no FK in schema cache → can't use
+  // nested select). Merge client-side by campaign_id.
+  const { data: campaignRows } = await supabase
+    .from("meta_ad_campaigns")
+    .select("id, campaign_type")
+    .eq("shop_id", shopId);
+  const campaignTypeMap = new Map<string, string>();
+  for (const c of campaignRows ?? []) {
+    if (c.id && c.campaign_type) {
+      campaignTypeMap.set(c.id as string, c.campaign_type as string);
+    }
+  }
+
   // 2. Get CPA target
   const { data: shopRow } = await supabase
     .from("shops")
@@ -65,17 +78,10 @@ export async function recomputeBenchmarksForShop(
 
   // 3. Map to BenchmarkInput (carrying campaignType + real duration)
   const inputs: BenchmarkInput[] = (rows ?? []).map((r) => {
-    const joined = (
-      r as unknown as {
-        meta_ad_campaigns?:
-          | { campaign_type?: string | null }
-          | Array<{ campaign_type?: string | null }>
-          | null;
-      }
-    ).meta_ad_campaigns;
-    const campaignTypeRaw = Array.isArray(joined)
-      ? joined[0]?.campaign_type
-      : joined?.campaign_type;
+    const campaignId = (r as { campaign_id?: string | null }).campaign_id;
+    const campaignTypeRaw = campaignId
+      ? campaignTypeMap.get(campaignId)
+      : undefined;
     const campaignType =
       campaignTypeRaw === "evergreen" ||
       campaignTypeRaw === "sale" ||
