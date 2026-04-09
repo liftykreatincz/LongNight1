@@ -25,6 +25,7 @@ import {
   LayoutGrid,
   Table as TableIcon,
   Swords,
+  ListTree,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -40,6 +41,7 @@ import type {
 } from "@/hooks/useCreativeAnalysis";
 import { CreativeMetaAnalysisSheet } from "@/components/creatives/CreativeMetaAnalysisSheet";
 import { AI_ACTION_ESTIMATES } from "@/lib/ai-pricing";
+import { CreativesTreeView } from "./creatives-tree-view";
 
 /* ── Helpers ── */
 
@@ -1050,10 +1052,12 @@ export default function CreativesPage() {
   const [initialScope, setInitialScope] = useState<
     "all" | "filtered" | "selected"
   >("all");
-  const [viewMode, setViewMode] = useState<"grid" | "table">(() => {
+  const [viewMode, setViewMode] = useState<"grid" | "table" | "tree">(() => {
     if (typeof window === "undefined") return "grid";
     const stored = localStorage.getItem("longnight-creatives-view-mode");
-    return stored === "table" ? "table" : "grid";
+    if (stored === "table") return "table";
+    if (stored === "tree") return "tree";
+    return "grid";
   });
 
   useEffect(() => {
@@ -1398,6 +1402,19 @@ export default function CreativesPage() {
           >
             <TableIcon className="h-4 w-4" />
           </button>
+          <button
+            onClick={() => setViewMode("tree")}
+            className={cn(
+              "inline-flex items-center justify-center rounded-full px-3 py-1.5 transition-colors",
+              viewMode === "tree"
+                ? "bg-[#0071e3] text-white"
+                : "text-[#6e6e73] hover:text-[#1d1d1f]"
+            )}
+            title="Strom (kampaně → ad sety → reklamy)"
+            aria-label="Strom"
+          >
+            <ListTree className="h-4 w-4" />
+          </button>
         </div>
       </div>
 
@@ -1502,6 +1519,17 @@ export default function CreativesPage() {
           creatives={filtered}
           onMediaClick={openMedia}
           analyzeMutation={analyzeMutation}
+          selectedIds={selectedIds}
+          onToggleSelected={toggleSelected}
+        />
+      )}
+
+      {/* Tree (Campaign → Ad Set → Ad) */}
+      {!isLoading && filtered.length > 0 && viewMode === "tree" && (
+        <CreativesTreeView
+          creatives={filtered}
+          searchQuery={searchQuery}
+          onMediaClick={openMedia}
           selectedIds={selectedIds}
           onToggleSelected={toggleSelected}
         />
