@@ -49,6 +49,7 @@ import {
 import { useShopBenchmarks } from "@/hooks/useShopBenchmarks";
 import { useShopCpaTarget } from "@/hooks/useShopCpaTarget";
 import { EngagementBadge } from "@/components/creatives/engagement-badge";
+import { CpaTargetPopover } from "@/components/creatives/cpa-target-popover";
 import type { ScoredCreativeRow } from "./types";
 
 /* ── Helpers ── */
@@ -1384,8 +1385,24 @@ export default function CreativesPage() {
             )}
             {syncMutation.isPending ? "Synchronizuji..." : "Synchronizovat"}
           </button>
+          <CpaTargetPopover
+            shopId={shopId}
+            currentValue={cpaTarget}
+            isFallback={cpaIsFallback}
+          />
         </div>
       </div>
+
+      {cpaIsFallback && (
+        <div className="rounded-xl border border-amber-200/60 bg-amber-50 p-3 text-sm text-amber-900 flex items-center gap-2">
+          <span>⚠️</span>
+          <span>
+            CPA target není nastaven — používám{" "}
+            {cpaSource === "median" ? "medián" : "výchozí hodnotu"}{" "}
+            <strong>{Math.round(cpaTarget)} Kč</strong> z tvých dat.
+          </span>
+        </div>
+      )}
 
       {/* Filter Bar */}
       <div className="flex flex-wrap items-center gap-2">
