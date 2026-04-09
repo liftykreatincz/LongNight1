@@ -25,19 +25,19 @@ export default async function DashboardPage() {
   return (
     <div>
       {/* Page header */}
-      <div className="mb-8 flex items-center justify-between">
+      <div className="mb-10 flex items-end justify-between gap-4 flex-wrap">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-white">
-            Your Shops
+          <h2 className="text-4xl sm:text-5xl font-extrabold tracking-[-0.03em] text-[#1d1d1f] leading-none">
+            Vaše e-shopy
           </h2>
-          <p className="mt-1 text-sm text-white/40">
-            Manage your eshops and Meta Ads integrations
+          <p className="mt-3 text-base sm:text-lg text-[#6e6e73] font-medium">
+            Spravujte své e-shopy a napojení na Meta Ads.
           </p>
         </div>
         <AddShopDialog>
-          <button className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-red-600 to-red-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-red-600/20 transition-all hover:shadow-red-500/40 hover:brightness-110">
+          <button className="flex items-center gap-2 rounded-full bg-[#0071e3] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#0077ed] active:bg-[#006edb]">
             <Plus className="h-4 w-4" />
-            Add Eshop
+            Přidat e-shop
           </button>
         </AddShopDialog>
       </div>
@@ -49,49 +49,49 @@ export default async function DashboardPage() {
             <Link
               key={shop.id}
               href={`/dashboard/${shop.id}`}
-              className="group relative rounded-xl border border-white/[0.06] bg-white/[0.02] p-5 transition-all hover:border-blue-500/30 hover:bg-white/[0.04] hover:shadow-lg hover:shadow-blue-500/5"
+              className="group relative rounded-2xl border border-[#d2d2d7]/60 bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-all hover:border-[#0071e3]/40 hover:shadow-[0_4px_16px_rgba(0,113,227,0.08)]"
             >
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500/10">
-                    <Store className="h-5 w-5 text-blue-400" />
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#0071e3]/10">
+                    <Store className="h-5 w-5 text-[#0071e3]" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-white group-hover:text-blue-100">
+                    <h3 className="font-bold text-[#1d1d1f] tracking-tight">
                       {shop.name}
                     </h3>
-                    <p className="mt-0.5 text-xs text-white/30">
-                      Added{" "}
-                      {new Date(shop.created_at).toLocaleDateString("en-US", {
-                        month: "short",
+                    <p className="mt-0.5 text-xs font-medium text-[#86868b]">
+                      Přidáno{" "}
+                      {new Date(shop.created_at).toLocaleDateString("cs-CZ", {
                         day: "numeric",
+                        month: "long",
                         year: "numeric",
                       })}
                     </p>
                   </div>
                 </div>
-                <ArrowRight className="h-4 w-4 text-white/20 transition-all group-hover:translate-x-0.5 group-hover:text-blue-400" />
+                <ArrowRight className="h-4 w-4 text-[#86868b] transition-all group-hover:translate-x-0.5 group-hover:text-[#0071e3]" />
               </div>
             </Link>
           ))}
         </div>
       ) : (
         /* Empty state */
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/[0.08] bg-white/[0.01] py-20">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-500/10">
-            <Store className="h-8 w-8 text-blue-400/60" />
+        <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-[#d2d2d7] bg-white/60 py-24">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#0071e3]/10">
+            <Store className="h-8 w-8 text-[#0071e3]" />
           </div>
-          <h3 className="mt-5 text-lg font-semibold text-white/70">
-            No shops yet
+          <h3 className="mt-6 text-2xl font-bold tracking-tight text-[#1d1d1f]">
+            Zatím žádné e-shopy
           </h3>
-          <p className="mt-1.5 max-w-sm text-center text-sm text-white/30">
-            Add your first eshop to start analyzing Meta Ads creative
-            performance.
+          <p className="mt-2 max-w-sm text-center text-base text-[#6e6e73]">
+            Přidejte svůj první e-shop a začněte analyzovat výkon kreativ z Meta
+            Ads.
           </p>
           <AddShopDialog>
-            <button className="mt-6 flex items-center gap-2 rounded-lg bg-gradient-to-r from-red-600 to-red-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-red-600/20 transition-all hover:shadow-red-500/40 hover:brightness-110">
+            <button className="mt-7 flex items-center gap-2 rounded-full bg-[#0071e3] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#0077ed] active:bg-[#006edb]">
               <Plus className="h-4 w-4" />
-              Add your first shop
+              Přidejte svůj první e-shop
             </button>
           </AddShopDialog>
         </div>

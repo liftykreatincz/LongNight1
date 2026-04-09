@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, ChevronRight, Sparkles, Trash2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, ChevronRight, Sparkles } from "lucide-react";
 import { DeleteShopButton } from "./delete-shop-button";
 
 export default async function ShopDetailPage({
@@ -33,74 +33,75 @@ export default async function ShopDetailPage({
   // Mask the meta account ID for display
   const maskedAccountId = shop.meta_account_id
     ? `${shop.meta_account_id.slice(0, 4)}...${shop.meta_account_id.slice(-4)}`
-    : "Not set";
+    : "Nenastaveno";
 
   return (
     <div>
       {/* Breadcrumb */}
-      <nav className="mb-6 flex items-center gap-1.5 text-sm text-white/40">
+      <nav className="mb-6 flex items-center gap-1.5 text-sm font-medium text-[#6e6e73]">
         <Link
           href="/dashboard"
-          className="transition-colors hover:text-white/70"
+          className="transition-colors hover:text-[#1d1d1f]"
         >
-          Dashboard
+          Přehled
         </Link>
         <ChevronRight className="h-3.5 w-3.5" />
-        <span className="text-white/70">{shop.name}</span>
+        <span className="text-[#1d1d1f]">{shop.name}</span>
       </nav>
 
       {/* Shop header */}
-      <div className="mb-8 flex items-center gap-4">
+      <div className="mb-10 flex items-center gap-4">
         <Link
           href="/dashboard"
-          className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/[0.06] bg-white/[0.02] text-white/40 transition-all hover:border-white/[0.12] hover:bg-white/[0.05] hover:text-white/70"
+          className="flex h-10 w-10 items-center justify-center rounded-full border border-[#d2d2d7]/60 bg-white text-[#6e6e73] shadow-sm transition-all hover:border-[#d2d2d7] hover:text-[#1d1d1f]"
+          aria-label="Zpět"
         >
           <ArrowLeft className="h-4 w-4" />
         </Link>
-        <h2 className="text-2xl font-bold tracking-tight text-white">
+        <h2 className="text-4xl sm:text-5xl font-extrabold tracking-[-0.03em] text-[#1d1d1f] leading-none">
           {shop.name}
         </h2>
       </div>
 
       {/* Feature cards grid */}
       <div className="grid gap-4 sm:grid-cols-2">
-        {/* Analyza kreativ card */}
+        {/* Analýza kreativ card */}
         <Link
           href={`/dashboard/${shop.id}/creatives`}
-          className="group relative overflow-hidden rounded-xl border border-white/[0.06] bg-white/[0.02] p-6 transition-all duration-200 hover:border-blue-500/30 hover:bg-white/[0.04] hover:shadow-lg hover:shadow-blue-500/5 hover:scale-[1.01]"
+          className="group relative overflow-hidden rounded-2xl border border-[#d2d2d7]/60 bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-all duration-200 hover:border-[#0071e3]/40 hover:shadow-[0_8px_24px_rgba(0,113,227,0.08)]"
         >
           <div className="flex items-start justify-between">
             <div className="flex items-start gap-4">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 transition-colors group-hover:bg-blue-500/20">
-                <Sparkles className="h-5 w-5 text-blue-400" />
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#0071e3]/10 transition-colors group-hover:bg-[#0071e3]/15">
+                <Sparkles className="h-5 w-5 text-[#0071e3]" />
               </div>
               <div>
-                <h3 className="font-semibold text-white group-hover:text-blue-100">
-                  Analyza kreativ
+                <h3 className="text-lg font-bold tracking-tight text-[#1d1d1f]">
+                  Analýza kreativ
                 </h3>
-                <p className="mt-1.5 text-sm leading-relaxed text-white/35 group-hover:text-white/50">
-                  Synchronizace a AI analyza reklamnich kreativ z Meta Ads
+                <p className="mt-1.5 text-sm leading-relaxed text-[#6e6e73]">
+                  Synchronizace a AI analýza reklamních kreativ z Meta Ads
                 </p>
               </div>
             </div>
-            <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-white/20 transition-all group-hover:translate-x-0.5 group-hover:text-blue-400" />
+            <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-[#86868b] transition-all group-hover:translate-x-0.5 group-hover:text-[#0071e3]" />
           </div>
         </Link>
       </div>
 
       {/* Shop settings */}
-      <div className="mt-12">
-        <h3 className="mb-4 text-sm font-medium uppercase tracking-wider text-white/30">
-          Shop Settings
+      <div className="mt-14">
+        <h3 className="mb-4 text-xs font-bold uppercase tracking-[0.1em] text-[#86868b]">
+          Nastavení e-shopu
         </h3>
-        <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] divide-y divide-white/[0.06]">
+        <div className="overflow-hidden rounded-2xl border border-[#d2d2d7]/60 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.03)] divide-y divide-[#d2d2d7]/60">
           {/* Meta Account ID */}
           <div className="flex items-center justify-between px-5 py-4">
             <div>
-              <p className="text-sm font-medium text-white/70">
-                Meta Account ID
+              <p className="text-sm font-semibold text-[#1d1d1f]">
+                Meta Ads Account ID
               </p>
-              <p className="mt-0.5 text-xs text-white/30 font-mono">
+              <p className="mt-0.5 text-xs text-[#6e6e73] font-mono">
                 {maskedAccountId}
               </p>
             </div>
@@ -109,11 +110,11 @@ export default async function ShopDetailPage({
           {/* Delete shop */}
           <div className="flex items-center justify-between px-5 py-4">
             <div>
-              <p className="text-sm font-medium text-red-400/80">
-                Delete shop
+              <p className="text-sm font-semibold text-red-600">
+                Smazat e-shop
               </p>
-              <p className="mt-0.5 text-xs text-white/30">
-                Permanently remove this shop and all its data
+              <p className="mt-0.5 text-xs text-[#6e6e73]">
+                Trvale odstraní tento e-shop a všechna jeho data.
               </p>
             </div>
             <DeleteShopButton shopId={shop.id} shopName={shop.name} />

@@ -37,47 +37,58 @@ export function AddShopDialog({ children }: { children: React.ReactNode }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={children as React.ReactElement}></DialogTrigger>
-      <DialogContent className="border-white/[0.08] bg-gray-950 text-white sm:max-w-md">
+      <DialogContent className="border-[#d2d2d7]/60 bg-white text-[#1d1d1f] sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-white">Add Eshop</DialogTitle>
-          <DialogDescription className="text-white/40">
-            Connect your shop with Meta Ads for creative analysis.
+          <DialogTitle className="text-xl font-bold tracking-tight text-[#1d1d1f]">
+            Přidat e-shop
+          </DialogTitle>
+          <DialogDescription className="text-[#6e6e73]">
+            Propojte svůj e-shop s Meta Ads pro analýzu kreativ.
           </DialogDescription>
         </DialogHeader>
 
         <form action={handleSubmit} className="mt-2 flex flex-col gap-4">
           {/* Shop name */}
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="shop-name" className="text-blue-100/70">
-              Shop Name
+            <Label
+              htmlFor="shop-name"
+              className="text-sm font-semibold text-[#1d1d1f]"
+            >
+              Název e-shopu
             </Label>
             <Input
               id="shop-name"
               name="name"
-              placeholder="My Eshop"
+              placeholder="Můj e-shop"
               required
-              className="h-10 rounded-lg border-white/10 bg-white/[0.06] text-white placeholder:text-white/25 focus-visible:border-blue-500/60 focus-visible:ring-blue-500/30"
+              className="h-11 rounded-xl border-[#d2d2d7] bg-white text-[#1d1d1f] placeholder:text-[#86868b] focus-visible:border-[#0071e3] focus-visible:ring-[#0071e3]/25"
             />
           </div>
 
           {/* Meta token */}
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="meta-token" className="text-blue-100/70">
-              Meta Ads API Token
+            <Label
+              htmlFor="meta-token"
+              className="text-sm font-semibold text-[#1d1d1f]"
+            >
+              Meta Ads API token
             </Label>
             <Input
               id="meta-token"
               name="meta_token"
               type="password"
-              placeholder="Your API token"
+              placeholder="Váš API token"
               required
-              className="h-10 rounded-lg border-white/10 bg-white/[0.06] text-white placeholder:text-white/25 focus-visible:border-blue-500/60 focus-visible:ring-blue-500/30"
+              className="h-11 rounded-xl border-[#d2d2d7] bg-white text-[#1d1d1f] placeholder:text-[#86868b] focus-visible:border-[#0071e3] focus-visible:ring-[#0071e3]/25"
             />
           </div>
 
           {/* Meta account ID */}
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="meta-account-id" className="text-blue-100/70">
+            <Label
+              htmlFor="meta-account-id"
+              className="text-sm font-semibold text-[#1d1d1f]"
+            >
               Meta Ads Account ID
             </Label>
             <Input
@@ -85,13 +96,13 @@ export function AddShopDialog({ children }: { children: React.ReactNode }) {
               name="meta_account_id"
               placeholder="act_123456789"
               required
-              className="h-10 rounded-lg border-white/10 bg-white/[0.06] text-white placeholder:text-white/25 focus-visible:border-blue-500/60 focus-visible:ring-blue-500/30"
+              className="h-11 rounded-xl border-[#d2d2d7] bg-white text-[#1d1d1f] placeholder:text-[#86868b] focus-visible:border-[#0071e3] focus-visible:ring-[#0071e3]/25"
             />
           </div>
 
           {/* Error */}
           {error && (
-            <p className="rounded-md bg-red-500/10 px-3 py-2 text-sm text-red-400">
+            <p className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
               {error}
             </p>
           )}
@@ -100,15 +111,15 @@ export function AddShopDialog({ children }: { children: React.ReactNode }) {
           <button
             type="submit"
             disabled={isPending}
-            className="mt-1 flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-blue-500 text-sm font-semibold text-white shadow-lg shadow-blue-600/20 transition-all hover:shadow-blue-500/40 hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 disabled:pointer-events-none disabled:opacity-60"
+            className="mt-1 flex h-11 w-full items-center justify-center gap-2 rounded-full bg-[#0071e3] text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#0077ed] active:bg-[#006edb] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071e3]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:pointer-events-none disabled:opacity-60"
           >
             {isPending ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Adding...
+                Přidávám...
               </>
             ) : (
-              "Add Shop"
+              "Přidat e-shop"
             )}
           </button>
         </form>

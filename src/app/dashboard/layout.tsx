@@ -18,31 +18,27 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="min-h-dvh bg-gray-950">
+    <div className="min-h-dvh bg-[#f5f5f7]">
       {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-gray-950/80 backdrop-blur-xl">
-        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+      <header className="sticky top-0 z-50 border-b border-[#d2d2d7]/60 bg-white/80 backdrop-blur-xl">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           {/* Logo */}
-          <h1 className="text-lg font-semibold tracking-tight text-white select-none"
-              style={{
-                textShadow: "0 0 20px rgba(59,130,246,0.4), 0 0 40px rgba(59,130,246,0.15)",
-              }}
-          >
+          <h1 className="text-xl font-extrabold tracking-[-0.02em] text-[#1d1d1f] select-none">
             Long Night
           </h1>
 
           {/* User info + sign out */}
           <div className="flex items-center gap-4">
-            <span className="hidden text-sm text-blue-100/50 sm:inline">
+            <span className="hidden text-sm font-medium text-[#6e6e73] sm:inline">
               {user.email}
             </span>
             <form action={signOut}>
               <button
                 type="submit"
-                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-white/50 transition-colors hover:bg-white/[0.06] hover:text-white/80"
+                className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium text-[#6e6e73] transition-colors hover:bg-black/[0.04] hover:text-[#1d1d1f]"
               >
                 <LogOut className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Sign out</span>
+                <span className="hidden sm:inline">Odhlásit se</span>
               </button>
             </form>
           </div>
@@ -50,7 +46,7 @@ export default async function DashboardLayout({
       </header>
 
       {/* Content */}
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-12 lg:px-8">
         {children}
       </main>
     </div>
