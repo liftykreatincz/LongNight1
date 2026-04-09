@@ -463,7 +463,11 @@ function CreativeCard({
           className="absolute top-2 right-2 z-10"
           onClick={(e) => e.stopPropagation()}
         >
-          <EngagementBadge result={c.engagement} size="lg" />
+          <EngagementBadge
+            result={c.engagement}
+            size="lg"
+            campaignType={c.campaignType}
+          />
         </div>
 
         {/* Clickable overlay */}
@@ -553,6 +557,7 @@ function CreativeCard({
           size="sm"
           showCategoryBars
           className="mt-1"
+          campaignType={c.campaignType}
         />
       </div>
 
@@ -1009,7 +1014,11 @@ function CreativesOverviewTable({
                     )}
                   </td>
                   <td className="px-3 py-2">
-                    <EngagementBadge result={c.engagement} size="md" />
+                    <EngagementBadge
+                      result={c.engagement}
+                      size="md"
+                      campaignType={c.campaignType}
+                    />
                   </td>
                   <td
                     className={cn(

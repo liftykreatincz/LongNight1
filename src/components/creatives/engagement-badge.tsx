@@ -6,12 +6,14 @@ import type {
   EngagementResult,
 } from "@/lib/engagement-score";
 import { colorForAction } from "@/lib/engagement-score/colors";
+import type { CampaignType } from "@/lib/campaign-classifier";
 
 interface Props {
   result: EngagementResult;
   size?: "sm" | "md" | "lg";
   showCategoryBars?: boolean;
   className?: string;
+  campaignType?: CampaignType;
 }
 
 const SIZES = {
@@ -20,22 +22,34 @@ const SIZES = {
   lg: { w: 56, text: "text-[17px] font-extrabold", stroke: 3 },
 } as const;
 
-function tooltipText(r: EngagementResult): string {
+function tooltipText(r: EngagementResult, campaignType?: CampaignType): string {
+  const lines: string[] = [];
   if (r.actionLabel === "insufficient_data") {
-    if (r.filterReason === "low_spend") return "Sbírání dat · málo útraty";
-    if (r.filterReason === "low_clicks") return "Sbírání dat · málo kliků";
-    return "Sbírání dat";
+    if (r.filterReason === "low_spend") lines.push("Sbírání dat · málo útraty");
+    else if (r.filterReason === "low_clicks")
+      lines.push("Sbírání dat · málo kliků");
+    else lines.push("Sbírání dat");
+  } else {
+    const parts: string[] = [];
+    if (r.categories.attention !== null)
+      parts.push(`A ${Math.round(r.categories.attention)}`);
+    if (r.categories.retention !== null)
+      parts.push(`R ${Math.round(r.categories.retention)}`);
+    if (r.categories.efficiency !== null)
+      parts.push(`E ${Math.round(r.categories.efficiency)}`);
+    if (r.categories.performance !== null)
+      parts.push(`P ${Math.round(r.categories.performance)}`);
+    lines.push(parts.join(" · "));
   }
-  const parts: string[] = [];
-  if (r.categories.attention !== null)
-    parts.push(`A ${Math.round(r.categories.attention)}`);
-  if (r.categories.retention !== null)
-    parts.push(`R ${Math.round(r.categories.retention)}`);
-  if (r.categories.efficiency !== null)
-    parts.push(`E ${Math.round(r.categories.efficiency)}`);
-  if (r.categories.performance !== null)
-    parts.push(`P ${Math.round(r.categories.performance)}`);
-  return parts.join(" · ");
+  if (campaignType) {
+    lines.push(`Typ: ${campaignType}`);
+  }
+  if (r.usedFallback) {
+    lines.push(
+      `Benchmark: ${r.effectiveCampaignType} (${r.fallbackReason ?? "fallback"})`
+    );
+  }
+  return lines.join("\n");
 }
 
 function CategoryBars({ cats }: { cats: CategoryScores }) {
@@ -85,6 +99,7 @@ export function EngagementBadge({
   size = "md",
   showCategoryBars = false,
   className,
+  campaignType,
 }: Props) {
   const color = colorForAction(result.actionLabel);
   const { w, text } = SIZES[size];
@@ -107,7 +122,7 @@ export function EngagementBadge({
           color: color.fg,
           borderColor: color.border,
         }}
-        title={tooltipText(result)}
+        title={tooltipText(result, campaignType)}
       >
         {label}
       </div>

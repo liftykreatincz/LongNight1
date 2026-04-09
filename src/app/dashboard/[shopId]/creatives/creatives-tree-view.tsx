@@ -144,6 +144,7 @@ function AdRow({
           result={engagement}
           size="sm"
           className="shrink-0"
+          campaignType={creative.campaignType}
         />
       )}
 
