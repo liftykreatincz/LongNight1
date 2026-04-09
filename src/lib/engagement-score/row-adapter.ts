@@ -16,5 +16,7 @@ export function creativeRowToScoreInput(row: CreativeRow): ScoreInput {
     videoAvgWatchTime: row.videoAvgWatchTime,
     cpa: row.costPerPurchase,
     cpm: row.cpm,
+    campaignType: row.campaignType,
+    videoDurationSeconds: row.videoDurationSeconds,
   };
 }

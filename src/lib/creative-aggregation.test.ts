@@ -43,6 +43,9 @@ function makeCreative(overrides: Partial<CreativeRow> = {}): CreativeRow {
     shares: 0,
     syncedAt: "2026-04-09T00:00:00Z",
     aiAnalysis: null,
+    campaignType: "evergreen",
+    campaignTypeSource: "auto",
+    videoDurationSeconds: null,
     ...overrides,
   };
 }

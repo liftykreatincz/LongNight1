@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
+import type { CampaignType } from "@/lib/campaign-classifier";
 
 export interface CreativeAnalysis {
   score: number;
@@ -61,6 +62,9 @@ export interface CreativeRow {
   shares: number;
   syncedAt: string;
   aiAnalysis: CreativeAnalysis | null;
+  campaignType: CampaignType;
+  campaignTypeSource: "auto" | "manual";
+  videoDurationSeconds: number | null;
 }
 
 export function useCreativeAnalysis(shopId: string) {
@@ -73,7 +77,7 @@ export function useCreativeAnalysis(shopId: string) {
     queryFn: async (): Promise<CreativeRow[]> => {
       const { data, error } = await supabase
         .from("meta_ad_creatives")
-        .select("*")
+        .select("*, meta_ad_campaigns(campaign_type, campaign_type_source)")
         .eq("shop_id", shopId)
         .order("spend", { ascending: false });
 
@@ -123,6 +127,22 @@ export function useCreativeAnalysis(shopId: string) {
             ? JSON.parse(r.ai_analysis)
             : (r.ai_analysis as CreativeAnalysis)
           : null,
+        campaignType: ((
+          r.meta_ad_campaigns as
+            | { campaign_type?: string; campaign_type_source?: string }
+            | null
+            | undefined
+        )?.campaign_type ?? "unknown") as CampaignType,
+        campaignTypeSource: ((
+          r.meta_ad_campaigns as
+            | { campaign_type?: string; campaign_type_source?: string }
+            | null
+            | undefined
+        )?.campaign_type_source ?? "auto") as "auto" | "manual",
+        videoDurationSeconds:
+          r.video_duration_seconds != null
+            ? Number(r.video_duration_seconds)
+            : null,
       }));
     },
   });

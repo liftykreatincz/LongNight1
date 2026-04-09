@@ -1,3 +1,4 @@
+import type { CampaignType } from "@/lib/campaign-classifier";
 import type {
   Benchmarks,
   CategoryScores,
@@ -24,6 +25,8 @@ export interface ScoreInput {
   videoAvgWatchTime: number;
   cpa: number;
   cpm: number;
+  campaignType: CampaignType;
+  videoDurationSeconds: number | null;
 }
 
 function formatOf(row: ScoreInput): Format {

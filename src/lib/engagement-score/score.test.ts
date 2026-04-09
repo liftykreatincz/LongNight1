@@ -17,6 +17,8 @@ function makeImage(overrides: Partial<ScoreInput> = {}): ScoreInput {
     videoAvgWatchTime: 0,
     cpa: 0,
     cpm: 0,
+    campaignType: "evergreen",
+    videoDurationSeconds: null,
     ...overrides,
   };
 }
@@ -118,6 +120,8 @@ describe("scoreCreative — video format", () => {
         videoAvgWatchTime: 8,
         cpa: 66.67,
         cpm: 20,
+        campaignType: "evergreen",
+        videoDurationSeconds: null,
       },
       DEFAULT_BENCHMARKS,
       300
@@ -146,6 +150,8 @@ describe("scoreCreative — null categories for missing metrics", () => {
         videoAvgWatchTime: 0,
         cpa: 200,
         cpm: 40,
+        campaignType: "evergreen",
+        videoDurationSeconds: null,
       },
       DEFAULT_BENCHMARKS,
       300
