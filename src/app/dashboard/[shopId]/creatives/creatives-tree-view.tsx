@@ -4,6 +4,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronRight, Image as ImageIcon, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CreativeRow } from "@/hooks/useCreativeAnalysis";
+import type { EngagementResult } from "@/lib/engagement-score";
+import { EngagementBadge } from "@/components/creatives/engagement-badge";
+import type { ScoredCreativeRow } from "./types";
 import {
   aggregateMetrics,
   groupIntoTree,
@@ -22,7 +25,7 @@ const fmtRoas = (n: number | null): string =>
   n === null ? "—" : `${n.toFixed(1)}×`;
 
 interface Props {
-  creatives: CreativeRow[];
+  creatives: ScoredCreativeRow[];
   searchQuery: string;
   onMediaClick: (c: CreativeRow, e: React.MouseEvent) => void;
   selectedIds: Set<string>;
@@ -81,11 +84,13 @@ function Metrics({ m }: { m: AggregatedMetrics }) {
 
 function AdRow({
   creative,
+  engagement,
   selected,
   onToggleSelected,
   onMediaClick,
 }: {
   creative: CreativeRow;
+  engagement: EngagementResult | undefined;
   selected: boolean;
   onToggleSelected: (adId: string) => void;
   onMediaClick: (c: CreativeRow, e: React.MouseEvent) => void;
@@ -124,6 +129,14 @@ function AdRow({
       >
         {selected && <span className="h-1.5 w-1.5 rounded-sm bg-white" />}
       </button>
+
+      {engagement && (
+        <EngagementBadge
+          result={engagement}
+          size="sm"
+          className="shrink-0"
+        />
+      )}
 
       <button
         type="button"
@@ -169,6 +182,7 @@ function AdSetRow({
   selectedIds,
   onToggleSelected,
   onMediaClick,
+  engagementByAdId,
 }: {
   node: AdSetNode;
   expanded: boolean;
@@ -176,6 +190,7 @@ function AdSetRow({
   selectedIds: Set<string>;
   onToggleSelected: (adId: string) => void;
   onMediaClick: (c: CreativeRow, e: React.MouseEvent) => void;
+  engagementByAdId: Map<string, EngagementResult>;
 }) {
   return (
     <div>
@@ -206,6 +221,7 @@ function AdSetRow({
           <AdRow
             key={ad.creative.adId}
             creative={ad.creative}
+            engagement={engagementByAdId.get(ad.creative.adId)}
             selected={selectedIds.has(ad.creative.adId)}
             onToggleSelected={onToggleSelected}
             onMediaClick={onMediaClick}
@@ -224,6 +240,7 @@ function CampaignRow({
   selectedIds,
   onToggleSelected,
   onMediaClick,
+  engagementByAdId,
 }: {
   node: CampaignNode;
   campaignExpanded: boolean;
@@ -233,6 +250,7 @@ function CampaignRow({
   selectedIds: Set<string>;
   onToggleSelected: (adId: string) => void;
   onMediaClick: (c: CreativeRow, e: React.MouseEvent) => void;
+  engagementByAdId: Map<string, EngagementResult>;
 }) {
   const totalAds = node.adsets.reduce((s, a) => s + a.ads.length, 0);
   return (
@@ -269,6 +287,7 @@ function CampaignRow({
             selectedIds={selectedIds}
             onToggleSelected={onToggleSelected}
             onMediaClick={onMediaClick}
+            engagementByAdId={engagementByAdId}
           />
         ))}
     </div>
@@ -283,6 +302,12 @@ export function CreativesTreeView({
   onToggleSelected,
 }: Props) {
   const tree = useMemo(() => groupIntoTree(creatives), [creatives]);
+
+  const engagementByAdId = useMemo(() => {
+    const map = new Map<string, EngagementResult>();
+    for (const c of creatives) map.set(c.adId, c.engagement);
+    return map;
+  }, [creatives]);
 
   const [expand, setExpand] = useState<ExpandState>({
     campaigns: new Set(),
@@ -372,6 +397,7 @@ export function CreativesTreeView({
             selectedIds={selectedIds}
             onToggleSelected={onToggleSelected}
             onMediaClick={onMediaClick}
+            engagementByAdId={engagementByAdId}
           />
         ))}
       </div>

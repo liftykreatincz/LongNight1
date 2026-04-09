@@ -45,13 +45,11 @@ import { CreativesTreeView } from "./creatives-tree-view";
 import {
   scoreCreative,
   creativeRowToScoreInput,
-  type EngagementResult,
 } from "@/lib/engagement-score";
 import { useShopBenchmarks } from "@/hooks/useShopBenchmarks";
 import { useShopCpaTarget } from "@/hooks/useShopCpaTarget";
 import { EngagementBadge } from "@/components/creatives/engagement-badge";
-
-type ScoredCreativeRow = CreativeRow & { engagement: EngagementResult };
+import type { ScoredCreativeRow } from "./types";
 
 /* ── Helpers ── */
 
