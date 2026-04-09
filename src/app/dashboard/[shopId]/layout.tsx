@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser, getShopById } from "@/lib/supabase/queries";
 
 export default async function ShopLayout({
   children,
@@ -9,22 +9,15 @@ export default async function ShopLayout({
   params: Promise<{ shopId: string }>;
 }) {
   const { shopId } = await params;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   if (!user) {
     redirect("/login");
   }
 
-  // Verify shop belongs to authenticated user
-  const { data: shop } = await supabase
-    .from("shops")
-    .select("id")
-    .eq("id", shopId)
-    .eq("user_id", user.id)
-    .single();
+  // Verify shop belongs to authenticated user. Cached: child pages
+  // requesting the same shop reuse this fetch without a new round trip.
+  const shop = await getShopById(shopId);
 
   if (!shop) {
     redirect("/dashboard");

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser, getShopById } from "@/lib/supabase/queries";
 import Link from "next/link";
 import { ArrowRight, ChevronRight, Sparkles } from "lucide-react";
 import { DeleteShopButton } from "./delete-shop-button";
@@ -10,21 +10,13 @@ export default async function ShopDetailPage({
   params: Promise<{ shopId: string }>;
 }) {
   const { shopId } = await params;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   if (!user) {
     redirect("/login");
   }
 
-  const { data: shop } = await supabase
-    .from("shops")
-    .select("*")
-    .eq("id", shopId)
-    .eq("user_id", user.id)
-    .single();
+  const shop = await getShopById(shopId);
 
   if (!shop) {
     redirect("/dashboard");

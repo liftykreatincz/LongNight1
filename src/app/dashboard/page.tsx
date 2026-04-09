@@ -1,26 +1,18 @@
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser, getUserShops } from "@/lib/supabase/queries";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Store, Plus, ArrowRight } from "lucide-react";
 import { AddShopDialog } from "@/components/add-shop-dialog";
 
 export default async function DashboardPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   if (!user) {
     redirect("/login");
   }
 
-  const { data: shops } = await supabase
-    .from("shops")
-    .select("*")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false });
-
-  const hasShops = shops && shops.length > 0;
+  const shops = await getUserShops();
+  const hasShops = shops.length > 0;
 
   return (
     <div>
