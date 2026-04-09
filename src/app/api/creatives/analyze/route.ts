@@ -298,8 +298,18 @@ Odpověz POUZE validním JSON objektem (bez markdown, bez code blocku) v tomto f
   }
 }`;
 
-    // 8. Call Claude API
-    const anthropicKey = process.env.ANTHROPIC_API_KEY;
+    // 8. Call Claude API — prefer user-configured key from user_settings
+    const { data: userSettings } = await supabase
+      .from("user_settings")
+      .select("anthropic_api_key")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    const userKey =
+      typeof userSettings?.anthropic_api_key === "string"
+        ? userSettings.anthropic_api_key.trim()
+        : "";
+    const anthropicKey = userKey.length > 0 ? userKey : process.env.ANTHROPIC_API_KEY;
     if (!anthropicKey) {
       return NextResponse.json(
         { error: "ANTHROPIC_API_KEY not configured" },

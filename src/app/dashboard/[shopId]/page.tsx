@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, ChevronRight, Sparkles } from "lucide-react";
+import { ArrowRight, ChevronRight, Sparkles } from "lucide-react";
 import { DeleteShopButton } from "./delete-shop-button";
 
 export default async function ShopDetailPage({
@@ -50,14 +50,7 @@ export default async function ShopDetailPage({
       </nav>
 
       {/* Shop header */}
-      <div className="mb-10 flex items-center gap-4">
-        <Link
-          href="/dashboard"
-          className="flex h-10 w-10 items-center justify-center rounded-full border border-[#d2d2d7]/60 bg-white text-[#6e6e73] shadow-sm transition-all hover:border-[#d2d2d7] hover:text-[#1d1d1f]"
-          aria-label="Zpět"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Link>
+      <div className="mb-10">
         <h2 className="text-4xl sm:text-5xl font-extrabold tracking-[-0.03em] text-[#1d1d1f] leading-none">
           {shop.name}
         </h2>

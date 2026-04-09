@@ -259,7 +259,17 @@ export async function POST(request: NextRequest) {
 
     const payloadText = buildPayload(rows);
 
-    const anthropicKey = process.env.ANTHROPIC_API_KEY;
+    const { data: userSettings } = await supabase
+      .from("user_settings")
+      .select("anthropic_api_key")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    const userKey =
+      typeof userSettings?.anthropic_api_key === "string"
+        ? userSettings.anthropic_api_key.trim()
+        : "";
+    const anthropicKey = userKey.length > 0 ? userKey : process.env.ANTHROPIC_API_KEY;
     if (!anthropicKey) {
       return NextResponse.json(
         { error: "ANTHROPIC_API_KEY not configured" },
