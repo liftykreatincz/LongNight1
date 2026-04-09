@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { scoreCreative, type ScoreInput } from "./score";
+import {
+  scoreCreative,
+  computeAvgWatchPct,
+  type ScoreInput,
+} from "./score";
 import { DEFAULT_BENCHMARKS } from "./defaults";
 
 function makeImage(overrides: Partial<ScoreInput> = {}): ScoreInput {
@@ -22,6 +26,33 @@ function makeImage(overrides: Partial<ScoreInput> = {}): ScoreInput {
     ...overrides,
   };
 }
+
+describe("computeAvgWatchPct", () => {
+  it("uses real duration when provided", () => {
+    expect(
+      computeAvgWatchPct({
+        videoAvgWatchTime: 30,
+        videoDurationSeconds: 60,
+      } as ScoreInput)
+    ).toBe(50);
+  });
+  it("falls back to /15 when null", () => {
+    expect(
+      computeAvgWatchPct({
+        videoAvgWatchTime: 7.5,
+        videoDurationSeconds: null,
+      } as ScoreInput)
+    ).toBe(50);
+  });
+  it("falls back to /15 when 0", () => {
+    expect(
+      computeAvgWatchPct({
+        videoAvgWatchTime: 7.5,
+        videoDurationSeconds: 0,
+      } as ScoreInput)
+    ).toBe(50);
+  });
+});
 
 describe("scoreCreative — insufficient data", () => {
   it("returns insufficient_data when spend < 2*cpa and clicks < 50", () => {

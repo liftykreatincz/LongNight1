@@ -33,6 +33,17 @@ function formatOf(row: ScoreInput): Format {
   return row.creativeType === "video" ? "video" : "image";
 }
 
+/**
+ * Computes avg_watch_pct using real video duration when available.
+ * Falls back to the Phase 1 proxy of 15s when duration is null or 0.
+ */
+export function computeAvgWatchPct(input: ScoreInput): number {
+  if (input.videoDurationSeconds && input.videoDurationSeconds > 0) {
+    return (input.videoAvgWatchTime / input.videoDurationSeconds) * 100;
+  }
+  return (input.videoAvgWatchTime / 15) * 100;
+}
+
 function derivedValue(row: ScoreInput, metric: MetricKey): number {
   switch (metric) {
     case "ctr_link":
@@ -50,10 +61,9 @@ function derivedValue(row: ScoreInput, metric: MetricKey): number {
         ? (row.videoPlays / row.impressions) * 100
         : NaN;
     case "avg_watch_pct":
-      // Phase 1 proxy: assume 15s average video length
-      return row.videoAvgWatchTime > 0
-        ? (row.videoAvgWatchTime / 15) * 100
-        : NaN;
+      // Uses real video_duration_seconds when present, falls back to
+      // the Phase 1 proxy of 15s when duration is null or 0.
+      return row.videoAvgWatchTime > 0 ? computeAvgWatchPct(row) : NaN;
     case "thruplay_rate":
       // Guard on videoPlays > 0: if the video was never played, thruplay
       // rate is not a meaningful signal (returns NaN → category skipped).
