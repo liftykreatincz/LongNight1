@@ -46,6 +46,8 @@ export interface CreativeRow {
   addToCart: number;
   costPerAddToCart: number;
   initiateCheckout: number;
+  linkClicks: number;
+  landingPageViews: number;
   videoViews3s: number;
   videoThruplay: number;
   likes: number;
@@ -96,6 +98,8 @@ export function useCreativeAnalysis(shopId: string) {
         addToCart: Number(r.add_to_cart),
         costPerAddToCart: Number(r.cost_per_add_to_cart),
         initiateCheckout: Number(r.initiate_checkout),
+        linkClicks: Number(r.link_clicks ?? 0),
+        landingPageViews: Number(r.landing_page_views ?? 0),
         videoViews3s: Number(r.video_views_3s),
         videoThruplay: Number(r.video_thruplay),
         likes: Number(r.likes),
