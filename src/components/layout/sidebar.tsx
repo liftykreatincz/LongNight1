@@ -62,13 +62,20 @@ function formatBuildTime(buildTime?: string | null): string | null {
   }).format(date);
 }
 
+function formatUsd(n: number): string {
+  if (n <= 0) return "$0";
+  if (n < 0.01) return "<$0.01";
+  return `$${n.toFixed(2)}`;
+}
+
 interface SidebarProps {
   userEmail: string | null;
   buildTime?: string | null;
   commitSha?: string | null;
+  aiSpend?: { today: number; month: number };
 }
 
-export function Sidebar({ userEmail, buildTime, commitSha }: SidebarProps) {
+export function Sidebar({ userEmail, buildTime, commitSha, aiSpend }: SidebarProps) {
   const pathname = usePathname() || "/dashboard";
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -142,6 +149,28 @@ export function Sidebar({ userEmail, buildTime, commitSha }: SidebarProps) {
           <span>Odhlásit se</span>
         </button>
       </form>
+      {aiSpend && (aiSpend.today > 0 || aiSpend.month > 0) && (
+        <div className="mt-3 rounded-xl bg-black/[0.03] px-3 py-2.5">
+          <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#86868b]">
+            AI útraty
+          </p>
+          <div className="mt-1 flex items-baseline gap-3 text-[11px] font-medium text-[#6e6e73]">
+            <span>
+              Dnes{" "}
+              <span className="font-semibold text-[#1d1d1f]">
+                {formatUsd(aiSpend.today)}
+              </span>
+            </span>
+            <span className="text-[#d2d2d7]">·</span>
+            <span>
+              Měsíc{" "}
+              <span className="font-semibold text-[#1d1d1f]">
+                {formatUsd(aiSpend.month)}
+              </span>
+            </span>
+          </div>
+        </div>
+      )}
       {(buildLabel || shortSha) && (
         <div className="mt-3 px-2">
           {buildLabel && (

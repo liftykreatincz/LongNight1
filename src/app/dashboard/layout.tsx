@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/supabase/queries";
+import { getCurrentUser, getAiSpend } from "@/lib/supabase/queries";
 import { Sidebar } from "@/components/layout/sidebar";
 
 export default async function DashboardLayout({
@@ -13,6 +13,8 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
+  const aiSpend = await getAiSpend();
+
   const buildTime = process.env.NEXT_PUBLIC_BUILD_TIME ?? null;
   const commitSha =
     process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA ??
@@ -25,6 +27,7 @@ export default async function DashboardLayout({
         userEmail={user.email ?? null}
         buildTime={buildTime}
         commitSha={commitSha}
+        aiSpend={aiSpend}
       />
       <div className="flex min-w-0 flex-1 flex-col">
         <main className="flex-1 px-5 py-8 sm:px-8 lg:px-12 lg:py-10">
