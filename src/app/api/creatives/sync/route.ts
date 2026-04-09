@@ -37,8 +37,28 @@ interface MetaInsight {
   actions?: { action_type: string; value: string }[];
   cost_per_action_type?: { action_type: string; value: string }[];
   action_values?: { action_type: string; value: string }[];
+  frequency?: string;
+  video_play_actions?: { action_type: string; value: string }[];
+  video_avg_time_watched_actions?: { action_type: string; value: string }[];
   date_start: string;
   date_stop: string;
+}
+
+function getVideoAvgWatchSeconds(
+  videoAvgTimeWatched: Array<{ action_type: string; value: string }> | undefined
+): number {
+  if (!videoAvgTimeWatched) return 0;
+  // Use the main video_view action type
+  const entry = videoAvgTimeWatched.find((a) => a.action_type === "video_view");
+  return entry ? parseFloat(entry.value) || 0 : 0;
+}
+
+function getVideoPlays(
+  videoPlayActions: Array<{ action_type: string; value: string }> | undefined
+): number {
+  if (!videoPlayActions) return 0;
+  // Sum all video play action entries; Meta splits by platform
+  return videoPlayActions.reduce((sum, a) => sum + (parseFloat(a.value) || 0), 0);
 }
 
 interface MetaPaginatedResponse<T> {
@@ -170,7 +190,7 @@ export async function POST(request: Request) {
     const until = now.toISOString().split("T")[0];
     const timeRange = JSON.stringify({ since, until });
 
-    const insightsUrl = `${META_BASE}/${accountId}/insights?level=ad&time_range=${encodeURIComponent(timeRange)}&fields=ad_id,ad_name,spend,impressions,reach,clicks,ctr,cpc,cpm,actions,cost_per_action_type,action_values,date_start,date_stop&limit=500&access_token=${token}`;
+    const insightsUrl = `${META_BASE}/${accountId}/insights?level=ad&time_range=${encodeURIComponent(timeRange)}&fields=ad_id,ad_name,spend,impressions,reach,clicks,ctr,cpc,cpm,actions,cost_per_action_type,action_values,frequency,video_play_actions,video_avg_time_watched_actions,date_start,date_stop&limit=500&access_token=${token}`;
 
     let allInsights: MetaInsight[];
     try {
@@ -317,6 +337,11 @@ export async function POST(request: Request) {
         landing_page_views: landingPageViews,
         video_views_3s: videoViews3s,
         video_thruplay: videoThruplay,
+        frequency: insight ? parseFloat(insight.frequency ?? "0") || 0 : 0,
+        video_plays: getVideoPlays(insight?.video_play_actions),
+        video_avg_watch_time: getVideoAvgWatchSeconds(
+          insight?.video_avg_time_watched_actions
+        ),
         date_start: insight?.date_start ?? null,
         date_stop: insight?.date_stop ?? null,
         synced_at: new Date().toISOString(),
