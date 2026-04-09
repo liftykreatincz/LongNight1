@@ -20,8 +20,8 @@ interface MetaAd {
       video_data?: { video_id?: string };
     };
   };
-  adset?: { name: string };
-  campaign?: { name: string };
+  adset?: { id: string; name: string };
+  campaign?: { id: string; name: string };
 }
 
 interface MetaInsight {
@@ -147,7 +147,7 @@ export async function POST(request: Request) {
       : `act_${rawAccountId}`;
 
     // Step 1 — Fetch ALL ads with pagination
-    const adsUrl = `${META_BASE}/${accountId}/ads?fields=name,status,creative{thumbnail_url,object_story_spec},adset{name},campaign{name}&limit=500&access_token=${token}`;
+    const adsUrl = `${META_BASE}/${accountId}/ads?fields=name,status,creative{thumbnail_url,object_story_spec},adset{id,name},campaign{id,name}&limit=500&access_token=${token}`;
 
     let allAds: MetaAd[];
     try {
@@ -290,7 +290,9 @@ export async function POST(request: Request) {
         ad_id: ad.id,
         ad_name: ad.name,
         status: ad.status,
+        campaign_id: ad.campaign?.id ?? null,
         campaign_name: ad.campaign?.name ?? null,
+        adset_id: ad.adset?.id ?? null,
         adset_name: ad.adset?.name ?? null,
         thumbnail_url: ad.creative?.thumbnail_url ?? null,
         video_url: videoUrl,

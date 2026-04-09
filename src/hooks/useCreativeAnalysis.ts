@@ -24,7 +24,9 @@ export interface CreativeAnalysis {
 export interface CreativeRow {
   adId: string;
   adName: string;
+  campaignId: string;
   campaignName: string;
+  adsetId: string;
   adsetName: string;
   status: string;
   thumbnailUrl: string | null;
@@ -43,6 +45,7 @@ export interface CreativeRow {
   purchases: number;
   costPerPurchase: number;
   roas: number;
+  purchaseRevenue: number;
   addToCart: number;
   costPerAddToCart: number;
   initiateCheckout: number;
@@ -76,7 +79,9 @@ export function useCreativeAnalysis(shopId: string) {
       return (data ?? []).map((r: Record<string, unknown>) => ({
         adId: r.ad_id as string,
         adName: (r.ad_name as string) || "",
+        campaignId: (r.campaign_id as string) || "",
         campaignName: (r.campaign_name as string) || "",
+        adsetId: (r.adset_id as string) || "",
         adsetName: (r.adset_name as string) || "",
         status: (r.status as string) || "unknown",
         thumbnailUrl: r.thumbnail_url as string | null,
@@ -95,6 +100,7 @@ export function useCreativeAnalysis(shopId: string) {
         purchases: Number(r.purchases),
         costPerPurchase: Number(r.cost_per_purchase),
         roas: Number(r.roas),
+        purchaseRevenue: Number(r.purchase_revenue ?? 0),
         addToCart: Number(r.add_to_cart),
         costPerAddToCart: Number(r.cost_per_add_to_cart),
         initiateCheckout: Number(r.initiate_checkout),
