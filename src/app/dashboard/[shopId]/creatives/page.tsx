@@ -1126,6 +1126,25 @@ export default function CreativesPage() {
     source: cpaSource,
   } = useShopCpaTarget(shopId, creatives);
 
+  const benchmarkInfo = useMemo(() => {
+    if (!benchmarks) return undefined;
+    const primarySegment: CampaignType | "all" =
+      campaignTypeFilter === "all" ? "all" : campaignTypeFilter;
+    // Use video format as representative for UI display (video is the
+    // primary scored case for this shop's creatives).
+    const set = benchmarks.get(`video:${primarySegment}`);
+    const sampleSize = set?.sample_size ?? 0;
+    const usedFallback = sampleSize < 15 || primarySegment === "unknown";
+    return {
+      primarySegment,
+      effectiveSegment: usedFallback
+        ? ("all" as const)
+        : primarySegment,
+      sampleSize,
+      usedFallback,
+    };
+  }, [benchmarks, campaignTypeFilter]);
+
   const scored = useMemo<ScoredCreativeRow[]>(() => {
     if (!creatives || !benchmarks) return [];
     return creatives.map((c) => ({
@@ -1456,6 +1475,7 @@ export default function CreativesPage() {
             shopId={shopId}
             currentValue={cpaTarget}
             isFallback={cpaIsFallback}
+            benchmarkInfo={benchmarkInfo}
           />
           <button
             type="button"

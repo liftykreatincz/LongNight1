@@ -5,14 +5,28 @@ import { Settings2, Loader2 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
+import type { CampaignType } from "@/lib/campaign-classifier";
+
+interface BenchmarkInfo {
+  primarySegment: CampaignType | "all";
+  effectiveSegment: CampaignType | "all";
+  sampleSize: number;
+  usedFallback: boolean;
+}
 
 interface Props {
   shopId: string;
   currentValue: number;
   isFallback: boolean;
+  benchmarkInfo?: BenchmarkInfo;
 }
 
-export function CpaTargetPopover({ shopId, currentValue, isFallback }: Props) {
+export function CpaTargetPopover({
+  shopId,
+  currentValue,
+  isFallback,
+  benchmarkInfo,
+}: Props) {
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState(String(Math.round(currentValue)));
   const [saving, setSaving] = useState(false);
@@ -70,6 +84,14 @@ export function CpaTargetPopover({ shopId, currentValue, isFallback }: Props) {
             className="w-full rounded-md border border-[#d2d2d7] px-3 py-1.5 text-sm"
             disabled={saving}
           />
+          {benchmarkInfo && (
+            <p className="mt-2 text-[11px] text-[#6e6e73]">
+              Benchmarky: <strong>{benchmarkInfo.primarySegment}</strong>
+              {benchmarkInfo.usedFallback
+                ? ` → ${benchmarkInfo.effectiveSegment} (málo dat, n=${benchmarkInfo.sampleSize})`
+                : ` (n=${benchmarkInfo.sampleSize})`}
+            </p>
+          )}
           <div className="flex gap-2 mt-3">
             <button
               type="button"
