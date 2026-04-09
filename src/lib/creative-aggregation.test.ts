@@ -45,12 +45,15 @@ function makeCreative(overrides: Partial<CreativeRow> = {}): CreativeRow {
 }
 
 describe("aggregateMetrics", () => {
-  it("returns zeros for empty input", () => {
+  it("returns zeros for counters and null for ratios on empty input", () => {
     const m = aggregateMetrics([]);
     expect(m.spend).toBe(0);
-    expect(m.ctr).toBe(0);
-    expect(m.roas).toBe(0);
-    expect(m.costPerPurchase).toBe(0);
+    expect(m.impressions).toBe(0);
+    expect(m.ctr).toBeNull();
+    expect(m.cpc).toBeNull();
+    expect(m.cpm).toBeNull();
+    expect(m.roas).toBeNull();
+    expect(m.costPerPurchase).toBeNull();
   });
 
   it("sums raw counters", () => {
@@ -110,14 +113,16 @@ describe("aggregateMetrics", () => {
     expect(m.costPerPurchase).toBe(60);
   });
 
-  it("avoids division by zero", () => {
+  it("returns null for ratios when denominator is zero (not misleading 0)", () => {
     const m = aggregateMetrics([
       makeCreative({ spend: 100, impressions: 0, clicks: 0, purchases: 0 }),
     ]);
-    expect(m.ctr).toBe(0);
-    expect(m.cpc).toBe(0);
-    expect(m.cpm).toBe(0);
-    expect(m.costPerPurchase).toBe(0);
+    expect(m.ctr).toBeNull();
+    expect(m.cpc).toBeNull();
+    expect(m.cpm).toBeNull();
+    expect(m.costPerPurchase).toBeNull();
+    // ROAS: spend=100, revenue=0 → 0/100 = 0 (legitimate zero, not null)
+    expect(m.roas).toBe(0);
   });
 });
 

@@ -7,13 +7,11 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const user = await getCurrentUser();
+  const [user, aiSpend] = await Promise.all([getCurrentUser(), getAiSpend()]);
 
   if (!user) {
     redirect("/login");
   }
-
-  const aiSpend = await getAiSpend();
 
   const buildTime = process.env.NEXT_PUBLIC_BUILD_TIME ?? null;
   const commitSha =

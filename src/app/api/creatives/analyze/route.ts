@@ -340,7 +340,7 @@ Odpověz POUZE validním JSON objektem (bez markdown, bez code blocku) v tomto f
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: CLAUDE_SONNET_4.model,
         max_tokens: 3000,
         messages: claudeMessages,
       }),

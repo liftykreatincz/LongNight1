@@ -15,6 +15,11 @@ import type { CreativeRow } from "@/hooks/useCreativeAnalysis";
  *   CPA  = SUM(spend)       / SUM(purchases)
  *   ROAS = SUM(revenue)     / SUM(spend)
  */
+/**
+ * Ratio fields are `number | null`. `null` means "undefined for this group"
+ * (e.g. CTR has no meaning when impressions=0), which the UI renders as "—"
+ * rather than a misleading `0.00%`. Raw counter fields are always numbers.
+ */
 export interface AggregatedMetrics {
   spend: number;
   impressions: number;
@@ -23,11 +28,15 @@ export interface AggregatedMetrics {
   purchases: number;
   purchaseRevenue: number;
   addToCart: number;
-  ctr: number;
-  cpc: number;
-  cpm: number;
-  roas: number;
-  costPerPurchase: number;
+  ctr: number | null;
+  cpc: number | null;
+  cpm: number | null;
+  roas: number | null;
+  costPerPurchase: number | null;
+}
+
+function safeDiv(num: number, denom: number): number | null {
+  return denom > 0 ? num / denom : null;
 }
 
 export interface AdNode {
@@ -72,11 +81,13 @@ export function aggregateMetrics(creatives: CreativeRow[]): AggregatedMetrics {
     addToCart += Number(c.addToCart) || 0;
   }
 
-  const ctr = impressions > 0 ? (clicks / impressions) * 100 : 0;
-  const cpc = clicks > 0 ? spend / clicks : 0;
-  const cpm = impressions > 0 ? (spend / impressions) * 1000 : 0;
-  const roas = spend > 0 ? purchaseRevenue / spend : 0;
-  const costPerPurchase = purchases > 0 ? spend / purchases : 0;
+  const ctrRatio = safeDiv(clicks, impressions);
+  const ctr = ctrRatio === null ? null : ctrRatio * 100;
+  const cpc = safeDiv(spend, clicks);
+  const cpmRatio = safeDiv(spend, impressions);
+  const cpm = cpmRatio === null ? null : cpmRatio * 1000;
+  const roas = safeDiv(purchaseRevenue, spend);
+  const costPerPurchase = safeDiv(spend, purchases);
 
   return {
     spend,

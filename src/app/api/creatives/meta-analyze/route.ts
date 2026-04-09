@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { computeCostUsd, CLAUDE_SONNET_4 } from "@/lib/ai-pricing";
 
-const MODEL = "claude-sonnet-4-20250514";
+const MODEL = CLAUDE_SONNET_4.model;
 const MAX_CREATIVES = 60;
 const MIN_CREATIVES = 3;
 

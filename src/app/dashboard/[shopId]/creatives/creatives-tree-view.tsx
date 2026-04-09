@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronRight, Image as ImageIcon, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CreativeRow } from "@/hooks/useCreativeAnalysis";
 import {
+  aggregateMetrics,
   groupIntoTree,
   type AggregatedMetrics,
   type CampaignNode,
@@ -13,6 +14,12 @@ import {
 
 const fmt = (n: number) => Math.round(n).toLocaleString("cs-CZ");
 const fmtDec = (n: number) => n.toFixed(2).replace(".", ",");
+const fmtNullable = (n: number | null, suffix: string): string =>
+  n === null ? "—" : `${fmtDec(n)} ${suffix}`;
+const fmtNullableInt = (n: number | null, suffix: string): string =>
+  n === null ? "—" : `${fmt(n)} ${suffix}`;
+const fmtRoas = (n: number | null): string =>
+  n === null ? "—" : `${n.toFixed(1)}×`;
 
 interface Props {
   creatives: CreativeRow[];
@@ -41,25 +48,25 @@ function Metrics({ m }: { m: AggregatedMetrics }) {
       <span>
         <span className="text-[#86868b]">CPP </span>
         <span className="font-semibold text-[#1d1d1f]">
-          {m.costPerPurchase > 0 ? `${fmt(m.costPerPurchase)} Kč` : "—"}
+          {fmtNullableInt(m.costPerPurchase, "Kč")}
         </span>
       </span>
       <span>
         <span className="text-[#86868b]">ROAS </span>
         <span className="font-semibold text-[#1d1d1f]">
-          {m.roas > 0 ? `${m.roas.toFixed(1)}×` : "—"}
+          {fmtRoas(m.roas)}
         </span>
       </span>
       <span>
         <span className="text-[#86868b]">CTR </span>
         <span className="font-semibold text-[#1d1d1f]">
-          {fmtDec(m.ctr)} %
+          {fmtNullable(m.ctr, "%")}
         </span>
       </span>
       <span className="hidden xl:inline">
         <span className="text-[#86868b]">CPC </span>
         <span className="font-semibold text-[#1d1d1f]">
-          {fmtDec(m.cpc)} Kč
+          {fmtNullable(m.cpc, "Kč")}
         </span>
       </span>
       <span className="hidden xl:inline">
@@ -83,20 +90,11 @@ function AdRow({
   onToggleSelected: (adId: string) => void;
   onMediaClick: (c: CreativeRow, e: React.MouseEvent) => void;
 }) {
-  const m: AggregatedMetrics = {
-    spend: creative.spend,
-    impressions: creative.impressions,
-    reach: creative.reach,
-    clicks: creative.clicks,
-    purchases: creative.purchases,
-    purchaseRevenue: creative.purchaseRevenue,
-    addToCart: creative.addToCart,
-    ctr: creative.ctr,
-    cpc: creative.cpc,
-    cpm: creative.cpm,
-    roas: creative.roas,
-    costPerPurchase: creative.costPerPurchase,
-  };
+  // Recompute via aggregateMetrics so the ad row uses the exact same
+  // ratio semantics (null for undefined) as campaign/adset rollups —
+  // consistency > trusting Meta's per-ad ctr/cpc values which may be
+  // strings or zeros for ads with no impressions.
+  const m = aggregateMetrics([creative]);
 
   const canClickMedia =
     (creative.creativeType === "video" && creative.videoUrl) ||
@@ -291,9 +289,20 @@ export function CreativesTreeView({
     adsets: new Set(),
   });
 
-  // Auto-expand everything while searching so matches are visible.
+  // Auto-expand everything on each *new* non-empty search query. We track
+  // the previous trimmed query via ref so that upstream re-renders (which
+  // change the `tree` identity) don't clobber a manual collapse the user
+  // performs mid-search. Expanding only on query *transition* is the
+  // intended UX: the user typed something new → surface all matches.
+  const prevQueryRef = useRef<string>("");
   useEffect(() => {
-    if (searchQuery.trim().length === 0) return;
+    const trimmed = searchQuery.trim();
+    if (trimmed.length === 0) {
+      prevQueryRef.current = "";
+      return;
+    }
+    if (trimmed === prevQueryRef.current) return;
+    prevQueryRef.current = trimmed;
     setExpand({
       campaigns: new Set(tree.map((c) => c.campaignId)),
       adsets: new Set(tree.flatMap((c) => c.adsets.map((a) => a.adsetId))),
