@@ -627,6 +627,7 @@ function CreativeCard({
 /* ── Table view ── */
 
 type TableSortKey =
+  | "engagement_score"
   | "costPerPurchase"
   | "purchases"
   | "spend"
@@ -680,7 +681,7 @@ function CreativesOverviewTable({
   selectedIds,
   onToggleSelected,
 }: {
-  creatives: CreativeRow[];
+  creatives: ScoredCreativeRow[];
   onMediaClick: (c: CreativeRow, e: React.MouseEvent) => void;
   analyzeMutation: ReturnType<typeof useAnalyzeCreative>;
   selectedIds: Set<string>;
@@ -700,18 +701,28 @@ function CreativesOverviewTable({
     }
   };
 
-  const [sortKey, setSortKey] = useState<TableSortKey>("costPerPurchase");
-  const [sortAsc, setSortAsc] = useState(true);
+  const [sortKey, setSortKey] = useState<TableSortKey>("engagement_score");
+  const [sortAsc, setSortAsc] = useState(false);
 
   const rows = useMemo(() => {
     const list = [...creatives];
-    const getVal = (c: CreativeRow): number => {
+    const getVal = (c: ScoredCreativeRow): number => {
       if (sortKey === "hookRate") return hookRate(c);
       if (sortKey === "atcPerLinkClick") return atcPerLinkClick(c);
       if (sortKey === "atcPerPageView") return atcPerPageView(c);
       return Number((c as unknown as Record<string, number>)[sortKey] ?? 0);
     };
     list.sort((a, b) => {
+      if (sortKey === "engagement_score") {
+        const aS = a.engagement.engagementScore;
+        const bS = b.engagement.engagementScore;
+        // insufficient_data always ranked last
+        if (aS === null && bS === null) return 0;
+        if (aS === null) return 1;
+        if (bS === null) return -1;
+        const cmp = aS < bS ? -1 : aS > bS ? 1 : 0;
+        return sortAsc ? cmp : -cmp;
+      }
       if (sortKey === "costPerPurchase") {
         const aP = a.purchases || 0;
         const bP = b.purchases || 0;
@@ -767,6 +778,13 @@ function CreativesOverviewTable({
                 Reklama
               </th>
               <th className="text-left font-bold px-3 py-2.5">AI</th>
+              <TableSortTh
+                label="Score"
+                active={sortKey === "engagement_score"}
+                arrow={arrow("engagement_score")}
+                onClick={() => handleSort("engagement_score")}
+                emphasized
+              />
               <TableSortTh
                 label="CPP"
                 active={sortKey === "costPerPurchase"}
@@ -971,6 +989,9 @@ function CreativesOverviewTable({
                         )}
                       </button>
                     )}
+                  </td>
+                  <td className="px-3 py-2">
+                    <EngagementBadge result={c.engagement} size="md" />
                   </td>
                   <td
                     className={cn(
