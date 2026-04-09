@@ -76,6 +76,31 @@ interface MetaPaginatedResponse<T> {
   paging?: { next?: string };
 }
 
+async function fetchVideoDuration(
+  adCreativeId: string,
+  accessToken: string
+): Promise<number | null> {
+  try {
+    const creativeRes = await fetch(
+      `${META_BASE}/${adCreativeId}?fields=video_id&access_token=${encodeURIComponent(accessToken)}`
+    );
+    if (!creativeRes.ok) return null;
+    const creative = (await creativeRes.json()) as { video_id?: string };
+    const videoId = creative.video_id;
+    if (!videoId) return null;
+
+    const videoRes = await fetch(
+      `${META_BASE}/${videoId}?fields=length&access_token=${encodeURIComponent(accessToken)}`
+    );
+    if (!videoRes.ok) return null;
+    const video = (await videoRes.json()) as { length?: number | string };
+    const len = Number(video.length);
+    return Number.isFinite(len) && len > 0 ? len : null;
+  } catch {
+    return null;
+  }
+}
+
 async function fetchAllPages<T>(url: string): Promise<T[]> {
   const results: T[] = [];
   let nextUrl: string | undefined = url;
@@ -333,7 +358,8 @@ export async function POST(request: Request) {
     }
 
     // Step 4 — Merge and upsert
-    const rows = allAds.map((ad) => {
+    const rows = await Promise.all(
+      allAds.map(async (ad) => {
       const insight = insightsMap.get(ad.id);
       const actions = insight?.actions;
       const costPerActions = insight?.cost_per_action_type;
@@ -396,6 +422,13 @@ export async function POST(request: Request) {
         ? videoSourceMap.get(videoId) ?? null
         : null;
 
+      // P2-7: fetch video length from Graph API for video creatives. Non-fatal.
+      let videoDurationSeconds: number | null = null;
+      const adCreativeId = ad.creative?.id;
+      if (videoId && adCreativeId) {
+        videoDurationSeconds = await fetchVideoDuration(adCreativeId, token);
+      }
+
       return {
         shop_id: shopId,
         ad_id: ad.id,
@@ -433,11 +466,13 @@ export async function POST(request: Request) {
         video_avg_watch_time: getVideoAvgWatchSeconds(
           insight?.video_avg_time_watched_actions
         ),
+        video_duration_seconds: videoDurationSeconds,
         date_start: insight?.date_start ?? null,
         date_stop: insight?.date_stop ?? null,
         synced_at: new Date().toISOString(),
       };
-    });
+      })
+    );
 
     // Upsert in batches to avoid payload limits
     const BATCH_SIZE = 200;
