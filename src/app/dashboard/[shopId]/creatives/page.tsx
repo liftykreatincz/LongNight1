@@ -1198,7 +1198,36 @@ export default function CreativesPage() {
   }, [viewMode]);
 
   const [recomputing, setRecomputing] = useState(false);
+  const [reclassifying, setReclassifying] = useState(false);
   const queryClient = useQueryClient();
+
+  async function handleReclassify() {
+    setReclassifying(true);
+    try {
+      const res = await fetch("/api/campaigns/reclassify", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ shopId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Error");
+      toast.success(`Reklasifikováno ${data.updated} kampaní`);
+      queryClient.invalidateQueries({
+        queryKey: ["creative-analysis", shopId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["unclassified-campaigns", shopId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["shop-benchmarks", shopId],
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Chyba";
+      toast.error(`Chyba: ${msg}`);
+    } finally {
+      setReclassifying(false);
+    }
+  }
 
   async function handleRecomputeBenchmarks() {
     setRecomputing(true);
@@ -1501,6 +1530,15 @@ export default function CreativesPage() {
               <BarChart3 className="h-3.5 w-3.5" />
             )}
             Přepočítat benchmarky
+          </button>
+          <button
+            type="button"
+            onClick={handleReclassify}
+            disabled={reclassifying}
+            className="inline-flex items-center gap-1.5 rounded-full border border-[#d2d2d7] bg-white px-3 py-1.5 text-xs font-medium text-[#1d1d1f] hover:bg-[#f5f5f7] disabled:opacity-50"
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            {reclassifying ? "Klasifikuji..." : "Reklasifikovat"}
           </button>
         </div>
       </div>
