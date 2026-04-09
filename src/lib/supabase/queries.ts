@@ -47,3 +47,45 @@ export const getUserShops = cache(async () => {
     .order("created_at", { ascending: false });
   return data ?? [];
 });
+
+export const getAiSpend = cache(async (): Promise<{
+  today: number;
+  month: number;
+}> => {
+  const user = await getCurrentUser();
+  if (!user) return { today: 0, month: 0 };
+
+  // Server runs in fra1 (see vercel.json) → Europe/Berlin, close enough to
+  // Europe/Prague. Month start is the 1st of the current month at local midnight,
+  // day start is today at local midnight.
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const dayStart = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate()
+  );
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("ai_usage_logs")
+    .select("cost_usd, created_at")
+    .eq("user_id", user.id)
+    .gte("created_at", monthStart.toISOString());
+
+  if (error) {
+    console.error("[getAiSpend]", error);
+    return { today: 0, month: 0 };
+  }
+
+  let today = 0;
+  let month = 0;
+  for (const row of data ?? []) {
+    const cost = Number(row.cost_usd ?? 0);
+    month += cost;
+    if (new Date(row.created_at as string) >= dayStart) {
+      today += cost;
+    }
+  }
+  return { today, month };
+});
