@@ -39,6 +39,7 @@ import type {
   CreativeAnalysis,
 } from "@/hooks/useCreativeAnalysis";
 import { CreativeMetaAnalysisSheet } from "@/components/creatives/CreativeMetaAnalysisSheet";
+import { AI_ACTION_ESTIMATES } from "@/lib/ai-pricing";
 
 /* ── Helpers ── */
 
@@ -583,6 +584,11 @@ function CreativeCard({
                   <Sparkles className="h-4 w-4 text-amber-500" />
                 )}
                 {isAnalyzing ? "Analyzuji..." : "Analyzovat kreativu (AI)"}
+                {!isAnalyzing && (
+                  <span className="ml-1.5 rounded-full bg-black/[0.06] px-1.5 py-0.5 text-[10px] font-semibold text-[#6e6e73]">
+                    ~${AI_ACTION_ESTIMATES.analyze.toFixed(2)}
+                  </span>
+                )}
               </button>
             </div>
           )}
@@ -1260,6 +1266,9 @@ export default function CreativesPage() {
           >
             <Brain className="h-4 w-4 text-amber-500" />
             AI shrnutí
+            <span className="ml-1.5 rounded-full bg-black/[0.06] px-1.5 py-0.5 text-[10px] font-semibold text-[#6e6e73]">
+              ~${AI_ACTION_ESTIMATES.metaAnalyze.toFixed(2)}
+            </span>
           </button>
           <button
             onClick={handleSync}
@@ -1532,6 +1541,9 @@ export default function CreativesPage() {
             >
               <Swords className="h-4 w-4" />
               AI shrnutí proti sobě
+              <span className="ml-1.5 rounded-full bg-white/20 px-1.5 py-0.5 text-[10px] font-semibold">
+                ~${AI_ACTION_ESTIMATES.metaAnalyze.toFixed(2)}
+              </span>
             </button>
           </div>
         </div>
