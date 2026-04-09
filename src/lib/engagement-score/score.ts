@@ -1,15 +1,17 @@
 import type { CampaignType } from "@/lib/campaign-classifier";
 import type {
-  Benchmarks,
+  BenchmarkSet,
   CategoryScores,
   EngagementResult,
   Format,
   MetricKey,
+  MetricThresholds,
 } from "./types";
 import { INVERTED_METRICS } from "./types";
 import { normalize } from "./normalize";
 import { hasEnoughData } from "./filter";
 import { actionLabelFromScore } from "./action";
+import { resolveBenchmarks } from "./resolve-benchmarks";
 
 export interface ScoreInput {
   creativeType: string;
@@ -95,15 +97,14 @@ function derivedValue(row: ScoreInput, metric: MetricKey): number {
 
 function categoryAverage(
   row: ScoreInput,
-  benchmarks: Benchmarks,
-  format: Format,
+  metricThresholds: MetricThresholds,
   metrics: MetricKey[]
 ): number | null {
   const scores: number[] = [];
   for (const metric of metrics) {
     const value = derivedValue(row, metric);
     if (!Number.isFinite(value)) continue;
-    const thresholds = benchmarks[format][metric];
+    const thresholds = metricThresholds[metric];
     if (!thresholds) continue;
     scores.push(normalize(value, thresholds, INVERTED_METRICS.has(metric)));
   }
@@ -177,10 +178,12 @@ function weightedAverage(
 
 export function scoreCreative(
   row: ScoreInput,
-  benchmarks: Benchmarks,
+  benchmarks: Map<string, BenchmarkSet>,
   cpaTarget: number
 ): EngagementResult {
   const format = formatOf(row);
+  const resolved = resolveBenchmarks(benchmarks, format, row.campaignType);
+  const metricThresholds = resolved.set.metrics;
   const filter = hasEnoughData(
     { spend: row.spend, linkClicks: row.linkClicks, purchases: row.purchases },
     cpaTarget
@@ -198,6 +201,9 @@ export function scoreCreative(
       actionLabel: "insufficient_data",
       filterReason: filter.reason,
       format,
+      usedFallback: resolved.usedFallback,
+      fallbackReason: resolved.fallbackReason,
+      effectiveCampaignType: resolved.effectiveCampaignType,
     };
   }
 
@@ -206,47 +212,40 @@ export function scoreCreative(
       ? {
           attention: categoryAverage(
             row,
-            benchmarks,
-            format,
+            metricThresholds,
             IMAGE_CATEGORIES.attention
           ),
           retention: null,
           efficiency: categoryAverage(
             row,
-            benchmarks,
-            format,
+            metricThresholds,
             IMAGE_CATEGORIES.efficiency
           ),
           performance: categoryAverage(
             row,
-            benchmarks,
-            format,
+            metricThresholds,
             IMAGE_CATEGORIES.performance
           ),
         }
       : {
           attention: categoryAverage(
             row,
-            benchmarks,
-            format,
+            metricThresholds,
             VIDEO_CATEGORIES.attention
           ),
           retention: categoryAverage(
             row,
-            benchmarks,
-            format,
+            metricThresholds,
             VIDEO_CATEGORIES.retention
           ),
           efficiency: categoryAverage(
             row,
-            benchmarks,
-            format,
+            metricThresholds,
             VIDEO_CATEGORIES.efficiency
           ),
           performance: categoryAverage(
             row,
-            benchmarks,
-            format,
+            metricThresholds,
             VIDEO_CATEGORIES.performance
           ),
         };
@@ -261,5 +260,8 @@ export function scoreCreative(
     actionLabel: actionLabelFromScore(engagementScore),
     filterReason: null,
     format,
+    usedFallback: resolved.usedFallback,
+    fallbackReason: resolved.fallbackReason,
+    effectiveCampaignType: resolved.effectiveCampaignType,
   };
 }

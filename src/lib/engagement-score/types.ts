@@ -1,3 +1,5 @@
+import type { CampaignType } from "@/lib/campaign-classifier";
+
 export type Format = "image" | "video";
 /** Alias used by segmented benchmark resolution (Phase 2). */
 export type CreativeFormat = Format;
@@ -60,6 +62,9 @@ export interface EngagementResult {
   actionLabel: ActionLabel;
   filterReason: FilterReason;
   format: Format;
+  usedFallback: boolean;
+  fallbackReason: string | null;
+  effectiveCampaignType: CampaignType | "all";
 }
 
 /** Metrics for which a LOWER value is better (CPA, PNO, CPM). */

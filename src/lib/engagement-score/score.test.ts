@@ -5,6 +5,25 @@ import {
   type ScoreInput,
 } from "./score";
 import { DEFAULT_BENCHMARKS } from "./defaults";
+import type { BenchmarkSet } from "./types";
+
+/**
+ * Build a benchmarks Map seeded with the default thresholds for both
+ * `evergreen` and `all` segments so existing assertions keep working.
+ */
+function defaultBenchmarksMap(sampleSize = 100): Map<string, BenchmarkSet> {
+  const map = new Map<string, BenchmarkSet>();
+  for (const format of ["image", "video"] as const) {
+    const set: BenchmarkSet = {
+      format,
+      metrics: DEFAULT_BENCHMARKS[format],
+      sample_size: sampleSize,
+    };
+    map.set(`${format}:evergreen`, set);
+    map.set(`${format}:all`, set);
+  }
+  return map;
+}
 
 function makeImage(overrides: Partial<ScoreInput> = {}): ScoreInput {
   return {
@@ -58,7 +77,7 @@ describe("scoreCreative — insufficient data", () => {
   it("returns insufficient_data when spend < 2*cpa and clicks < 50", () => {
     const r = scoreCreative(
       makeImage({ spend: 100, linkClicks: 10 }),
-      DEFAULT_BENCHMARKS,
+      defaultBenchmarksMap(),
       300
     );
     expect(r.actionLabel).toBe("insufficient_data");
@@ -78,7 +97,7 @@ describe("scoreCreative — insufficient data", () => {
         cpm: 10,
         purchaseRevenue: 1000,
       }),
-      DEFAULT_BENCHMARKS,
+      defaultBenchmarksMap(),
       300
     );
     expect(r.actionLabel).not.toBe("insufficient_data");
@@ -99,7 +118,7 @@ describe("scoreCreative — image format", () => {
         cpa: 50,
         cpm: 20,
       }),
-      DEFAULT_BENCHMARKS,
+      defaultBenchmarksMap(),
       300
     );
     expect(r.format).toBe("image");
@@ -125,7 +144,7 @@ describe("scoreCreative — image format", () => {
         cpm: 200,
         purchaseRevenue: 4000,
       }),
-      DEFAULT_BENCHMARKS,
+      defaultBenchmarksMap(),
       300
     );
     expect(typeof r.engagementScore).toBe("number");
@@ -154,13 +173,61 @@ describe("scoreCreative — video format", () => {
         campaignType: "evergreen",
         videoDurationSeconds: null,
       },
-      DEFAULT_BENCHMARKS,
+      defaultBenchmarksMap(),
       300
     );
     expect(r.format).toBe("video");
     expect(r.categories.retention).not.toBeNull();
     expect(r.categories.attention).not.toBeNull();
     expect(r.engagementScore).not.toBeNull();
+  });
+});
+
+describe("scoreCreative — segmentation metadata", () => {
+  it("usedFallback is false when primary segment is present", () => {
+    const r = scoreCreative(
+      makeImage({
+        spend: 1000,
+        linkClicks: 100,
+        impressions: 50_000,
+        clicks: 1500,
+        purchases: 20,
+        purchaseRevenue: 20_000,
+        cpa: 50,
+        cpm: 20,
+      }),
+      defaultBenchmarksMap(),
+      300
+    );
+    expect(r.usedFallback).toBe(false);
+    expect(r.effectiveCampaignType).toBe("evergreen");
+  });
+
+  it("usedFallback is true when primary segment is absent", () => {
+    const map = new Map<string, BenchmarkSet>();
+    map.set("image:all", {
+      format: "image",
+      metrics: DEFAULT_BENCHMARKS.image,
+      sample_size: 200,
+    });
+    const r = scoreCreative(
+      makeImage({
+        spend: 1000,
+        linkClicks: 100,
+        impressions: 50_000,
+        clicks: 1500,
+        purchases: 20,
+        purchaseRevenue: 20_000,
+        cpa: 50,
+        cpm: 20,
+        campaignType: "sale",
+      }),
+      map,
+      300
+    );
+    expect(r.usedFallback).toBe(true);
+    expect(r.effectiveCampaignType).toBe("all");
+    expect(r.fallbackReason).toContain("sale");
   });
 });
 
@@ -184,7 +251,7 @@ describe("scoreCreative — null categories for missing metrics", () => {
         campaignType: "evergreen",
         videoDurationSeconds: null,
       },
-      DEFAULT_BENCHMARKS,
+      defaultBenchmarksMap(),
       300
     );
     expect(r.categories.retention).toBeNull();

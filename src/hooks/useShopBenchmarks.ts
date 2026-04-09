@@ -2,40 +2,77 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
-import type { Benchmarks, Format, MetricKey, Thresholds } from "@/lib/engagement-score";
+import type {
+  BenchmarkSet,
+  Format,
+  MetricKey,
+  MetricThresholds,
+} from "@/lib/engagement-score";
 import { DEFAULT_BENCHMARKS } from "@/lib/engagement-score";
 
 interface BenchmarkRow {
   format: Format;
+  campaign_type: string;
   metric: MetricKey;
   fail: number;
   hranice: number;
   good: number;
   top: number;
+  sample_size: number;
   is_default: boolean;
 }
 
-function rowsToBenchmarks(rows: BenchmarkRow[]): Benchmarks {
-  const result: Benchmarks = { image: {}, video: {} };
+/**
+ * Groups raw `shop_benchmarks` rows into a `Map<string, BenchmarkSet>` keyed
+ * by `${format}:${campaign_type}`, ready to be consumed by `scoreCreative`.
+ * Seeds the `all` key from agency defaults when the shop has no rows at all
+ * so downstream resolution never hits the default-agency branch unless
+ * intentionally needed.
+ */
+function rowsToBenchmarksMap(rows: BenchmarkRow[]): Map<string, BenchmarkSet> {
+  const map = new Map<string, BenchmarkSet>();
+  // Group by key
+  const grouped = new Map<
+    string,
+    { format: Format; sample_size: number; metrics: MetricThresholds }
+  >();
   for (const row of rows) {
-    result[row.format][row.metric] = {
+    const key = `${row.format}:${row.campaign_type}`;
+    let entry = grouped.get(key);
+    if (!entry) {
+      entry = { format: row.format, sample_size: row.sample_size, metrics: {} };
+      grouped.set(key, entry);
+    }
+    entry.metrics[row.metric] = {
       fail: row.fail,
       hranice: row.hranice,
       good: row.good,
       top: row.top,
     };
+    // sample_size should be identical across metrics in the same segment,
+    // but guard against drift by keeping the highest seen.
+    if (row.sample_size > entry.sample_size) entry.sample_size = row.sample_size;
   }
-  // Fill missing metrics with defaults so scoring never errors out
+  for (const [key, entry] of grouped.entries()) {
+    map.set(key, {
+      format: entry.format,
+      metrics: entry.metrics,
+      sample_size: entry.sample_size,
+    });
+  }
+  return map;
+}
+
+function defaultsFallbackMap(): Map<string, BenchmarkSet> {
+  const map = new Map<string, BenchmarkSet>();
   for (const format of ["image", "video"] as const) {
-    for (const [metric, t] of Object.entries(DEFAULT_BENCHMARKS[format]) as Array<
-      [MetricKey, Thresholds]
-    >) {
-      if (!result[format][metric]) {
-        result[format][metric] = t;
-      }
-    }
+    map.set(`${format}:all`, {
+      format,
+      metrics: DEFAULT_BENCHMARKS[format],
+      sample_size: 0,
+    });
   }
-  return result;
+  return map;
 }
 
 export function useShopBenchmarks(shopId: string) {
@@ -43,23 +80,24 @@ export function useShopBenchmarks(shopId: string) {
   return useQuery({
     queryKey: ["shop-benchmarks", shopId],
     staleTime: 5 * 60 * 1000,
-    queryFn: async (): Promise<Benchmarks> => {
+    queryFn: async (): Promise<Map<string, BenchmarkSet>> => {
       const { data, error } = await supabase
         .from("shop_benchmarks")
-        .select("format,metric,fail,hranice,good,top,is_default")
-        .eq("shop_id", shopId)
-        .eq("campaign_type", "all");
+        .select(
+          "format,campaign_type,metric,fail,hranice,good,top,sample_size,is_default"
+        )
+        .eq("shop_id", shopId);
 
       if (error) {
         console.error("[useShopBenchmarks]", error);
-        return DEFAULT_BENCHMARKS;
+        return defaultsFallbackMap();
       }
 
       if (!data || data.length === 0) {
-        return DEFAULT_BENCHMARKS;
+        return defaultsFallbackMap();
       }
 
-      return rowsToBenchmarks(data as unknown as BenchmarkRow[]);
+      return rowsToBenchmarksMap(data as unknown as BenchmarkRow[]);
     },
   });
 }
