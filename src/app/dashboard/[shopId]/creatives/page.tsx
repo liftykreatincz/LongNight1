@@ -1723,6 +1723,7 @@ export default function CreativesPage() {
       {/* Tree (Campaign → Ad Set → Ad) */}
       {!isLoading && filtered.length > 0 && viewMode === "tree" && (
         <CreativesTreeView
+          shopId={shopId}
           creatives={filtered}
           searchQuery={searchQuery}
           onMediaClick={openMedia}

@@ -5,7 +5,9 @@ import { ChevronRight, Image as ImageIcon, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CreativeRow } from "@/hooks/useCreativeAnalysis";
 import type { EngagementResult } from "@/lib/engagement-score";
+import type { CampaignType } from "@/lib/campaign-classifier";
 import { EngagementBadge } from "@/components/creatives/engagement-badge";
+import { CampaignTypePopover } from "@/components/creatives/campaign-type-popover";
 import type { ScoredCreativeRow } from "./types";
 import {
   aggregateMetrics,
@@ -25,11 +27,18 @@ const fmtRoas = (n: number | null): string =>
   n === null ? "—" : `${n.toFixed(1)}×`;
 
 interface Props {
+  shopId: string;
   creatives: ScoredCreativeRow[];
   searchQuery: string;
   onMediaClick: (c: CreativeRow, e: React.MouseEvent) => void;
   selectedIds: Set<string>;
   onToggleSelected: (adId: string) => void;
+}
+
+interface CampaignTypeMeta {
+  type: CampaignType;
+  source: "auto" | "manual";
+  classifiedAt: string | null;
 }
 
 interface ExpandState {
@@ -233,6 +242,8 @@ function AdSetRow({
 
 function CampaignRow({
   node,
+  shopId,
+  campaignMeta,
   campaignExpanded,
   adsetExpanded,
   onToggleCampaign,
@@ -243,6 +254,8 @@ function CampaignRow({
   engagementByAdId,
 }: {
   node: CampaignNode;
+  shopId: string;
+  campaignMeta: CampaignTypeMeta | undefined;
   campaignExpanded: boolean;
   adsetExpanded: Set<string>;
   onToggleCampaign: () => void;
@@ -253,30 +266,52 @@ function CampaignRow({
   engagementByAdId: Map<string, EngagementResult>;
 }) {
   const totalAds = node.adsets.reduce((s, a) => s + a.ads.length, 0);
+  const meta: CampaignTypeMeta = campaignMeta ?? {
+    type: "unknown",
+    source: "auto",
+    classifiedAt: null,
+  };
+  const hasRealCampaignId =
+    node.campaignId && node.campaignId !== "__no_campaign__";
   return (
     <div className="border-t border-[#d2d2d7]/60 first:border-t-0">
-      <button
-        type="button"
-        onClick={onToggleCampaign}
-        className="w-full flex items-center gap-3 px-4 py-3 bg-white hover:bg-[#f5f5f7] transition-colors text-left"
-        aria-expanded={campaignExpanded}
+      <div
+        className="w-full flex items-center gap-3 px-4 py-3 bg-white hover:bg-[#f5f5f7] transition-colors"
       >
-        <ChevronRight
-          className={cn(
-            "h-4 w-4 text-[#6e6e73] transition-transform shrink-0",
-            campaignExpanded && "rotate-90"
-          )}
-        />
-        <div className="flex-1 min-w-0">
-          <p className="truncate text-[14px] font-bold text-[#1d1d1f]">
-            {node.campaignName}
-          </p>
-          <p className="text-[11px] text-[#86868b]">
-            {node.adsets.length} ad setů · {totalAds} reklam
-          </p>
-        </div>
+        <button
+          type="button"
+          onClick={onToggleCampaign}
+          className="flex items-center gap-3 flex-1 min-w-0 text-left"
+          aria-expanded={campaignExpanded}
+        >
+          <ChevronRight
+            className={cn(
+              "h-4 w-4 text-[#6e6e73] transition-transform shrink-0",
+              campaignExpanded && "rotate-90"
+            )}
+          />
+          <div className="flex-1 min-w-0">
+            <p className="truncate text-[14px] font-bold text-[#1d1d1f]">
+              {node.campaignName}
+            </p>
+            <p className="text-[11px] text-[#86868b]">
+              {node.adsets.length} ad setů · {totalAds} reklam
+            </p>
+          </div>
+        </button>
+        {hasRealCampaignId && (
+          <div onClick={(e) => e.stopPropagation()}>
+            <CampaignTypePopover
+              campaignId={node.campaignId}
+              shopId={shopId}
+              currentType={meta.type}
+              currentSource={meta.source}
+              classifiedAt={meta.classifiedAt}
+            />
+          </div>
+        )}
         <Metrics m={node.metrics} />
-      </button>
+      </div>
       {campaignExpanded &&
         node.adsets.map((adset) => (
           <AdSetRow
@@ -295,6 +330,7 @@ function CampaignRow({
 }
 
 export function CreativesTreeView({
+  shopId,
   creatives,
   searchQuery,
   onMediaClick,
@@ -306,6 +342,21 @@ export function CreativesTreeView({
   const engagementByAdId = useMemo(() => {
     const map = new Map<string, EngagementResult>();
     for (const c of creatives) map.set(c.adId, c.engagement);
+    return map;
+  }, [creatives]);
+
+  // TODO P2 polish: expose campaign_type_classified_at via useCreativeAnalysis
+  // join so the popover can show the exact timestamp; passing null is fine.
+  const campaignMetaById = useMemo(() => {
+    const map = new Map<string, CampaignTypeMeta>();
+    for (const c of creatives) {
+      if (!c.campaignId || map.has(c.campaignId)) continue;
+      map.set(c.campaignId, {
+        type: c.campaignType,
+        source: c.campaignTypeSource,
+        classifiedAt: null,
+      });
+    }
     return map;
   }, [creatives]);
 
@@ -390,6 +441,8 @@ export function CreativesTreeView({
           <CampaignRow
             key={campaign.campaignId}
             node={campaign}
+            shopId={shopId}
+            campaignMeta={campaignMetaById.get(campaign.campaignId)}
             campaignExpanded={expand.campaigns.has(campaign.campaignId)}
             adsetExpanded={expand.adsets}
             onToggleCampaign={() => toggleCampaign(campaign.campaignId)}
