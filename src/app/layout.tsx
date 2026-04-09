@@ -18,6 +18,12 @@ export const metadata: Metadata = {
   description: "AI-powered analysis of Meta Ads creatives across your eshops",
 };
 
+// Pin Next.js Server Component rendering + Route Handlers to Frankfurt so
+// that Supabase calls (DB in AWS eu-west-1, Ireland) aren't a transatlantic
+// hop. Was defaulting to iad1 (Washington DC) → ~80 ms RTT per call, making
+// every dashboard navigation ~1 s. Frankfurt → Dublin is ~15 ms RTT.
+export const preferredRegion = ["fra1", "dub1", "cdg1"];
+
 export default function RootLayout({
   children,
 }: Readonly<{
