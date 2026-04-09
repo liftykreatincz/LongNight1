@@ -6,3 +6,4 @@ export * from "./action";
 export * from "./compute-benchmarks";
 export * from "./score";
 export * from "./recompute-helper";
+export * from "./row-adapter";

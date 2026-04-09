@@ -42,6 +42,15 @@ import type {
 import { CreativeMetaAnalysisSheet } from "@/components/creatives/CreativeMetaAnalysisSheet";
 import { AI_ACTION_ESTIMATES } from "@/lib/ai-pricing";
 import { CreativesTreeView } from "./creatives-tree-view";
+import {
+  scoreCreative,
+  creativeRowToScoreInput,
+  type EngagementResult,
+} from "@/lib/engagement-score";
+import { useShopBenchmarks } from "@/hooks/useShopBenchmarks";
+import { useShopCpaTarget } from "@/hooks/useShopCpaTarget";
+
+type ScoredCreativeRow = CreativeRow & { engagement: EngagementResult };
 
 /* ── Helpers ── */
 
@@ -1040,6 +1049,25 @@ export default function CreativesPage() {
   const syncMutation = useSyncCreatives(shopId);
   const analyzeMutation = useAnalyzeCreative(shopId);
 
+  const { data: benchmarks } = useShopBenchmarks(shopId);
+  const {
+    value: cpaTarget,
+    isFallback: cpaIsFallback,
+    source: cpaSource,
+  } = useShopCpaTarget(shopId, creatives);
+
+  const scored = useMemo<ScoredCreativeRow[]>(() => {
+    if (!creatives || !benchmarks) return [];
+    return creatives.map((c) => ({
+      ...c,
+      engagement: scoreCreative(
+        creativeRowToScoreInput(c),
+        benchmarks,
+        cpaTarget
+      ),
+    }));
+  }, [creatives, benchmarks, cpaTarget]);
+
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [sortKey, setSortKey] = useState<SortKey>("purchases");
@@ -1114,9 +1142,9 @@ export default function CreativesPage() {
     return sorted[0]?.syncedAt ?? null;
   }, [creatives]);
 
-  const filtered = useMemo(() => {
-    if (!creatives) return [];
-    let result = [...creatives];
+  const filtered = useMemo<ScoredCreativeRow[]>(() => {
+    if (!scored.length) return [];
+    let result = [...scored];
 
     if (statusFilter !== "all") {
       result = result.filter((c) => c.status.toLowerCase() === statusFilter);
@@ -1141,7 +1169,7 @@ export default function CreativesPage() {
     });
 
     return result;
-  }, [creatives, statusFilter, typeFilter, searchQuery, sortKey, sortAsc]);
+  }, [scored, statusFilter, typeFilter, searchQuery, sortKey, sortAsc]);
 
   const summary = useMemo(() => {
     const totalSpend = filtered.reduce((s, c) => s + c.spend, 0);

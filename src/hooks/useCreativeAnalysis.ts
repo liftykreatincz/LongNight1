@@ -53,6 +53,9 @@ export interface CreativeRow {
   landingPageViews: number;
   videoViews3s: number;
   videoThruplay: number;
+  videoPlays: number;
+  videoAvgWatchTime: number;
+  frequency: number;
   likes: number;
   comments: number;
   shares: number;
@@ -108,6 +111,9 @@ export function useCreativeAnalysis(shopId: string) {
         landingPageViews: Number(r.landing_page_views ?? 0),
         videoViews3s: Number(r.video_views_3s),
         videoThruplay: Number(r.video_thruplay),
+        videoPlays: Number(r.video_plays ?? 0),
+        videoAvgWatchTime: Number(r.video_avg_watch_time ?? 0),
+        frequency: Number(r.frequency ?? 0),
         likes: Number(r.likes),
         comments: Number(r.comments),
         shares: Number(r.shares),
