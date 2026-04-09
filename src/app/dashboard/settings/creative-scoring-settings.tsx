@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
@@ -16,21 +16,28 @@ interface Props {
 }
 
 export function CreativeScoringSettings({ shops }: Props) {
-  const [selectedShopId, setSelectedShopId] = useState<string>(
-    shops[0]?.id ?? ""
-  );
-  const [value, setValue] = useState<string>("");
+  const initialShopId = shops[0]?.id ?? "";
+  const initialShop = shops.find((s) => s.id === initialShopId);
+  const initialValue =
+    initialShop?.cpa_target_czk != null
+      ? String(initialShop.cpa_target_czk)
+      : "";
+
+  const [selectedShopId, setSelectedShopId] = useState<string>(initialShopId);
+  const [value, setValue] = useState<string>(initialValue);
+  const [lastShopId, setLastShopId] = useState<string>(initialShopId);
   const [saving, setSaving] = useState(false);
 
   const selected = shops.find((s) => s.id === selectedShopId);
 
-  useEffect(() => {
-    if (selected) {
-      setValue(
-        selected.cpa_target_czk != null ? String(selected.cpa_target_czk) : ""
-      );
-    }
-  }, [selected]);
+  // Reset form value when the user switches to a different shop
+  // (React-recommended pattern: state derived from props without useEffect).
+  if (selectedShopId !== lastShopId) {
+    setLastShopId(selectedShopId);
+    setValue(
+      selected?.cpa_target_czk != null ? String(selected.cpa_target_czk) : ""
+    );
+  }
 
   async function save() {
     if (!selected) return;
