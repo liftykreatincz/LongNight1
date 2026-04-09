@@ -1,4 +1,6 @@
 export type Format = "image" | "video";
+/** Alias used by segmented benchmark resolution (Phase 2). */
+export type CreativeFormat = Format;
 
 export type MetricKey =
   | "ctr_link"
@@ -24,6 +26,17 @@ export interface Thresholds {
 export type MetricThresholds = Partial<Record<MetricKey, Thresholds>>;
 
 export type Benchmarks = Record<Format, MetricThresholds>;
+
+/**
+ * One (format, campaign_type) segment of benchmark thresholds plus the
+ * sample size it was computed from. Used by the Phase 2 resolution chain
+ * that picks per-segment benchmarks with graceful fallback to `all`.
+ */
+export interface BenchmarkSet {
+  format: Format;
+  metrics: MetricThresholds;
+  sample_size: number;
+}
 
 export interface CategoryScores {
   attention: number | null;

@@ -8,3 +8,4 @@ export * from "./score";
 export * from "./recompute-helper";
 export * from "./row-adapter";
 export * from "./colors";
+export * from "./resolve-benchmarks";

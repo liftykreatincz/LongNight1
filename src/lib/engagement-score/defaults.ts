@@ -1,4 +1,4 @@
-import type { Benchmarks } from "./types";
+import type { BenchmarkSet, Benchmarks, Format } from "./types";
 
 /**
  * Agency default thresholds for CZ e-commerce, Phase 1 starting point.
@@ -35,5 +35,23 @@ export const DEFAULT_BENCHMARKS: Benchmarks = {
     cpm: { fail: 350, hranice: 240, good: 160, top: 100 },
     cvr: { fail: 1.0, hranice: 1.8, good: 2.8, top: 4.0 },
     konv_per_1k: { fail: 0.3, hranice: 0.6, good: 1.1, top: 1.8 },
+  },
+};
+
+/**
+ * Default agency benchmarks expressed as BenchmarkSet per format, used as
+ * the last-resort fallback when neither the requested segment nor the
+ * shared `all` segment is available in the resolution chain.
+ */
+export const DEFAULT_AGENCY_BENCHMARKS: Record<Format, BenchmarkSet> = {
+  image: {
+    format: "image",
+    metrics: DEFAULT_BENCHMARKS.image,
+    sample_size: 0,
+  },
+  video: {
+    format: "video",
+    metrics: DEFAULT_BENCHMARKS.video,
+    sample_size: 0,
   },
 };
