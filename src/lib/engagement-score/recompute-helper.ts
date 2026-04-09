@@ -1,7 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { computeBenchmarks, type BenchmarkInput } from "./compute-benchmarks";
+import {
+  computeBenchmarks,
+  type BenchmarkInput,
+  type BenchmarkOutputRow,
+} from "./compute-benchmarks";
 import { DEFAULT_BENCHMARKS } from "./defaults";
-import type { Format, MetricKey, MetricThresholds } from "./types";
+import type { Format, MetricKey } from "./types";
 
 export interface RecomputeResult {
   updated: number;
@@ -9,17 +13,8 @@ export interface RecomputeResult {
   video: { sampleSize: number; isDefault: boolean };
 }
 
-interface BenchmarkRow {
+interface BenchmarkRow extends BenchmarkOutputRow {
   shop_id: string;
-  format: Format;
-  campaign_type: "all";
-  metric: MetricKey;
-  fail: number;
-  hranice: number;
-  good: number;
-  top: number;
-  sample_size: number;
-  is_default: boolean;
   computed_at: string;
 }
 
@@ -27,6 +22,10 @@ interface BenchmarkRow {
  * Recompute frozen benchmarks for a shop and upsert them into
  * `shop_benchmarks`. Uses rolling 30-day window, falls back to all-time
  * if the window is empty, and to agency defaults when sample size < 15.
+ *
+ * NOTE: P2-12 only transitions this helper onto the new segmented
+ * `computeBenchmarks` signature; it does not yet JOIN campaign_type.
+ * The JOIN + per-segment write is added in P2-13.
  */
 export async function recomputeBenchmarksForShop(
   supabase: SupabaseClient,
@@ -78,64 +77,76 @@ export async function recomputeBenchmarksForShop(
     videoThruplay: Number(r.video_thruplay) || 0,
     videoPlays: Number(r.video_plays) || 0,
     videoAvgWatchTime: Number(r.video_avg_watch_time) || 0,
+    videoDurationSeconds: null,
     cpa: Number(r.cost_per_purchase) || 0,
     cpm: Number(r.cpm) || 0,
+    campaignType: "unknown",
   }));
 
-  // 4. Compute per format, fall back to defaults
-  const imageResult = computeBenchmarks(inputs, "image", cpaTarget);
-  const videoResult = computeBenchmarks(inputs, "video", cpaTarget);
+  // 4. Compute segmented benchmark rows (segments beyond `all` require the
+  //    P2-13 JOIN work; for now every row is "unknown" so only the `all`
+  //    segment will be populated.)
+  const computed = computeBenchmarks(inputs, cpaTarget);
 
   const imageEligible = inputs.filter(
     (r) => r.creativeType !== "video"
   ).length;
   const videoEligible = inputs.filter((r) => r.creativeType === "video").length;
 
-  const imageThresholds: MetricThresholds =
-    imageResult ?? DEFAULT_BENCHMARKS.image;
-  const videoThresholds: MetricThresholds =
-    videoResult ?? DEFAULT_BENCHMARKS.video;
-
-  const isImageDefault = imageResult === null;
-  const isVideoDefault = videoResult === null;
-
-  // 5. Build upsert rows
   const now = new Date().toISOString();
-  const upsertRows: BenchmarkRow[] = [];
+  const upsertRows: BenchmarkRow[] = computed.map((c) => ({
+    ...c,
+    shop_id: shopId,
+    computed_at: now,
+  }));
 
-  for (const [metric, t] of Object.entries(imageThresholds) as Array<
-    [MetricKey, { fail: number; hranice: number; good: number; top: number }]
-  >) {
-    upsertRows.push({
-      shop_id: shopId,
-      format: "image",
-      campaign_type: "all",
-      metric,
-      fail: t.fail,
-      hranice: t.hranice,
-      good: t.good,
-      top: t.top,
-      sample_size: imageEligible,
-      is_default: isImageDefault,
-      computed_at: now,
-    });
+  function hasAllFor(format: Format): boolean {
+    return upsertRows.some(
+      (r) => r.format === format && r.campaign_type === "all"
+    );
   }
-  for (const [metric, t] of Object.entries(videoThresholds) as Array<
-    [MetricKey, { fail: number; hranice: number; good: number; top: number }]
-  >) {
-    upsertRows.push({
-      shop_id: shopId,
-      format: "video",
-      campaign_type: "all",
-      metric,
-      fail: t.fail,
-      hranice: t.hranice,
-      good: t.good,
-      top: t.top,
-      sample_size: videoEligible,
-      is_default: isVideoDefault,
-      computed_at: now,
-    });
+
+  const isImageDefault = !hasAllFor("image");
+  const isVideoDefault = !hasAllFor("video");
+
+  // 5. Fall back to agency defaults for missing `all` rows per format.
+  if (isImageDefault) {
+    for (const [metric, t] of Object.entries(DEFAULT_BENCHMARKS.image) as Array<
+      [MetricKey, { fail: number; hranice: number; good: number; top: number }]
+    >) {
+      upsertRows.push({
+        shop_id: shopId,
+        format: "image",
+        campaign_type: "all",
+        metric,
+        fail: t.fail,
+        hranice: t.hranice,
+        good: t.good,
+        top: t.top,
+        sample_size: imageEligible,
+        is_default: true,
+        computed_at: now,
+      });
+    }
+  }
+  if (isVideoDefault) {
+    for (const [metric, t] of Object.entries(DEFAULT_BENCHMARKS.video) as Array<
+      [MetricKey, { fail: number; hranice: number; good: number; top: number }]
+    >) {
+      upsertRows.push({
+        shop_id: shopId,
+        format: "video",
+        campaign_type: "all",
+        metric,
+        fail: t.fail,
+        hranice: t.hranice,
+        good: t.good,
+        top: t.top,
+        sample_size: videoEligible,
+        is_default: true,
+        computed_at: now,
+      });
+    }
   }
 
   // 6. Upsert (unique on shop_id, format, campaign_type, metric)
