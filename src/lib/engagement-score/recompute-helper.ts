@@ -21,11 +21,11 @@ interface BenchmarkRow extends BenchmarkOutputRow {
 /**
  * Recompute frozen benchmarks for a shop and upsert them into
  * `shop_benchmarks`. Uses rolling 30-day window, falls back to all-time
- * if the window is empty, and to agency defaults when sample size < 15.
- *
- * NOTE: P2-12 only transitions this helper onto the new segmented
- * `computeBenchmarks` signature; it does not yet JOIN campaign_type.
- * The JOIN + per-segment write is added in P2-13.
+ * if the window is empty, and to agency defaults when sample size < 15
+ * for the shared `all` segment. Segmented rows (`evergreen`/`sale`/
+ * `seasonal`) are emitted only when the per-segment filtered sample is
+ * ≥ 15. Campaign type + real video duration are pulled via nested JOIN
+ * on `meta_ad_campaigns`.
  */
 export async function recomputeBenchmarksForShop(
   supabase: SupabaseClient,
@@ -35,12 +35,13 @@ export async function recomputeBenchmarksForShop(
     Date.now() - 30 * 24 * 60 * 60 * 1000
   ).toISOString();
 
+  const selectCols =
+    "creative_type, spend, impressions, clicks, link_clicks, purchases, purchase_revenue, video_views_3s, video_thruplay, video_plays, video_avg_watch_time, video_duration_seconds, cost_per_purchase, cpm, date_stop, meta_ad_campaigns(campaign_type)";
+
   // 1. Try rolling window
   let { data: rows } = await supabase
     .from("meta_ad_creatives")
-    .select(
-      "creative_type, spend, impressions, clicks, link_clicks, purchases, purchase_revenue, video_views_3s, video_thruplay, video_plays, video_avg_watch_time, cost_per_purchase, cpm, date_stop"
-    )
+    .select(selectCols)
     .eq("shop_id", shopId)
     .gte("date_stop", thirtyDaysAgo);
 
@@ -48,9 +49,7 @@ export async function recomputeBenchmarksForShop(
   if (!rows || rows.length === 0) {
     const allTime = await supabase
       .from("meta_ad_creatives")
-      .select(
-        "creative_type, spend, impressions, clicks, link_clicks, purchases, purchase_revenue, video_views_3s, video_thruplay, video_plays, video_avg_watch_time, cost_per_purchase, cpm, date_stop"
-      )
+      .select(selectCols)
       .eq("shop_id", shopId);
     rows = allTime.data ?? [];
   }
@@ -64,28 +63,52 @@ export async function recomputeBenchmarksForShop(
 
   const cpaTarget = Number(shopRow?.cpa_target_czk) || 300;
 
-  // 3. Map to BenchmarkInput
-  const inputs: BenchmarkInput[] = (rows ?? []).map((r) => ({
-    creativeType: (r.creative_type as string) || "image",
-    spend: Number(r.spend) || 0,
-    impressions: Number(r.impressions) || 0,
-    clicks: Number(r.clicks) || 0,
-    linkClicks: Number(r.link_clicks) || 0,
-    purchases: Number(r.purchases) || 0,
-    purchaseRevenue: Number(r.purchase_revenue) || 0,
-    videoViews3s: Number(r.video_views_3s) || 0,
-    videoThruplay: Number(r.video_thruplay) || 0,
-    videoPlays: Number(r.video_plays) || 0,
-    videoAvgWatchTime: Number(r.video_avg_watch_time) || 0,
-    videoDurationSeconds: null,
-    cpa: Number(r.cost_per_purchase) || 0,
-    cpm: Number(r.cpm) || 0,
-    campaignType: "unknown",
-  }));
+  // 3. Map to BenchmarkInput (carrying campaignType + real duration)
+  const inputs: BenchmarkInput[] = (rows ?? []).map((r) => {
+    const joined = (
+      r as unknown as {
+        meta_ad_campaigns?:
+          | { campaign_type?: string | null }
+          | Array<{ campaign_type?: string | null }>
+          | null;
+      }
+    ).meta_ad_campaigns;
+    const campaignTypeRaw = Array.isArray(joined)
+      ? joined[0]?.campaign_type
+      : joined?.campaign_type;
+    const campaignType =
+      campaignTypeRaw === "evergreen" ||
+      campaignTypeRaw === "sale" ||
+      campaignTypeRaw === "seasonal"
+        ? campaignTypeRaw
+        : "unknown";
+    return {
+      creativeType: (r.creative_type as string) || "image",
+      spend: Number(r.spend) || 0,
+      impressions: Number(r.impressions) || 0,
+      clicks: Number(r.clicks) || 0,
+      linkClicks: Number(r.link_clicks) || 0,
+      purchases: Number(r.purchases) || 0,
+      purchaseRevenue: Number(r.purchase_revenue) || 0,
+      videoViews3s: Number(r.video_views_3s) || 0,
+      videoThruplay: Number(r.video_thruplay) || 0,
+      videoPlays: Number(r.video_plays) || 0,
+      videoAvgWatchTime: Number(r.video_avg_watch_time) || 0,
+      videoDurationSeconds:
+        (r as { video_duration_seconds?: number | null })
+          .video_duration_seconds != null
+          ? Number(
+              (r as { video_duration_seconds?: number | null })
+                .video_duration_seconds
+            )
+          : null,
+      cpa: Number(r.cost_per_purchase) || 0,
+      cpm: Number(r.cpm) || 0,
+      campaignType,
+    };
+  });
 
-  // 4. Compute segmented benchmark rows (segments beyond `all` require the
-  //    P2-13 JOIN work; for now every row is "unknown" so only the `all`
-  //    segment will be populated.)
+  // 4. Compute segmented benchmark rows.
   const computed = computeBenchmarks(inputs, cpaTarget);
 
   const imageEligible = inputs.filter(
@@ -149,14 +172,19 @@ export async function recomputeBenchmarksForShop(
     }
   }
 
-  // 6. Upsert (unique on shop_id, format, campaign_type, metric)
+  // 6. Delete + reinsert: segmentation means a previously populated
+  //    segment may disappear on recompute (sample drops below 15). A
+  //    narrow-conflict upsert would leave those stale rows behind, so we
+  //    do a wholesale replace per plan Appendix B (non-atomic but
+  //    acceptable for the benchmark recompute cadence).
   if (upsertRows.length > 0) {
-    const { error } = await supabase
+    const del = await supabase
       .from("shop_benchmarks")
-      .upsert(upsertRows, {
-        onConflict: "shop_id,format,campaign_type,metric",
-      });
-    if (error) throw error;
+      .delete()
+      .eq("shop_id", shopId);
+    if (del.error) throw del.error;
+    const ins = await supabase.from("shop_benchmarks").insert(upsertRows);
+    if (ins.error) throw ins.error;
   }
 
   return {
