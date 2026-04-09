@@ -6,6 +6,7 @@ import {
   getActionRevenue,
   delay,
 } from "@/lib/meta-api";
+import { classifyCampaign, type CampaignType } from "@/lib/campaign-classifier";
 
 const META_API_VERSION = "v21.0";
 const META_BASE = `https://graph.facebook.com/${META_API_VERSION}`;
@@ -15,6 +16,7 @@ interface MetaAd {
   name: string;
   status: string;
   creative?: {
+    id?: string;
     thumbnail_url?: string;
     object_story_spec?: {
       video_data?: { video_id?: string };
@@ -22,6 +24,14 @@ interface MetaAd {
   };
   adset?: { id: string; name: string };
   campaign?: { id: string; name: string };
+}
+
+interface MetaCampaign {
+  id: string;
+  name: string;
+  status?: string;
+  start_time?: string;
+  stop_time?: string;
 }
 
 interface MetaInsight {
@@ -167,7 +177,7 @@ export async function POST(request: Request) {
       : `act_${rawAccountId}`;
 
     // Step 1 — Fetch ALL ads with pagination
-    const adsUrl = `${META_BASE}/${accountId}/ads?fields=name,status,creative{thumbnail_url,object_story_spec},adset{id,name},campaign{id,name}&limit=500&access_token=${token}`;
+    const adsUrl = `${META_BASE}/${accountId}/ads?fields=name,status,creative{id,thumbnail_url,object_story_spec},adset{id,name},campaign{id,name}&limit=500&access_token=${token}`;
 
     let allAds: MetaAd[];
     try {
@@ -177,6 +187,87 @@ export async function POST(request: Request) {
         { error: `Failed to fetch ads: ${(e as Error).message}` },
         { status: 502 }
       );
+    }
+
+    // Step 1b — Fetch ALL campaigns with pagination and classify them
+    const campaignsUrl = `${META_BASE}/${accountId}/campaigns?fields=name,status,start_time,stop_time&limit=500&access_token=${token}`;
+
+    let allCampaigns: MetaCampaign[];
+    try {
+      allCampaigns = await fetchAllPages<MetaCampaign>(campaignsUrl);
+    } catch (e) {
+      return NextResponse.json(
+        { error: `Failed to fetch campaigns: ${(e as Error).message}` },
+        { status: 502 }
+      );
+    }
+
+    for (const metaCampaign of allCampaigns) {
+      const { data: existingCampaign } = await supabase
+        .from("meta_ad_campaigns")
+        .select("campaign_type, campaign_type_source")
+        .eq("id", metaCampaign.id)
+        .maybeSingle();
+
+      const isManual = existingCampaign?.campaign_type_source === "manual";
+
+      const basePayload: {
+        id: string;
+        shop_id: string;
+        name: string;
+        status: string | null;
+        start_time: string | null;
+        stop_time: string | null;
+      } = {
+        id: metaCampaign.id,
+        shop_id: shopId,
+        name: metaCampaign.name ?? "",
+        status: metaCampaign.status ?? null,
+        start_time: metaCampaign.start_time ?? null,
+        stop_time: metaCampaign.stop_time ?? null,
+      };
+
+      let upsertPayload:
+        | typeof basePayload
+        | (typeof basePayload & {
+            campaign_type: CampaignType;
+            campaign_type_source: "auto" | "manual";
+            campaign_type_classified_at: string;
+          });
+
+      if (isManual) {
+        // Preserve existing manual override — do not touch classification fields.
+        upsertPayload = basePayload;
+      } else {
+        const result = classifyCampaign({
+          name: metaCampaign.name ?? "",
+          started_at: metaCampaign.start_time
+            ? new Date(metaCampaign.start_time)
+            : null,
+          ended_at: metaCampaign.stop_time
+            ? new Date(metaCampaign.stop_time)
+            : null,
+        });
+        upsertPayload = {
+          ...basePayload,
+          campaign_type: result.type,
+          campaign_type_source: "auto",
+          campaign_type_classified_at: new Date().toISOString(),
+        };
+      }
+
+      const { error: campaignUpsertError } = await supabase
+        .from("meta_ad_campaigns")
+        .upsert(upsertPayload, { onConflict: "id" });
+
+      if (campaignUpsertError) {
+        return NextResponse.json(
+          {
+            error: `Campaign upsert failed: ${campaignUpsertError.message}`,
+          },
+          { status: 500 }
+        );
+      }
     }
 
     // Step 2 — Fetch ALL ad insights with pagination (36-month window)
