@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { computeCostUsd, CLAUDE_SONNET_4 } from "@/lib/ai-pricing";
 
 interface AnalyzeRequestBody {
   shopId: string;
@@ -357,6 +358,31 @@ Odpověz POUZE validním JSON objektem (bez markdown, bez code blocku) v tomto f
     }
 
     const claudeData = await claudeRes.json();
+
+    // Non-fatal: log AI usage. Selhání insertu nesmí ovlivnit response.
+    try {
+      const usage = claudeData?.usage ?? {};
+      const inputTokens = Number(usage.input_tokens ?? 0);
+      const outputTokens = Number(usage.output_tokens ?? 0);
+      if (inputTokens > 0 || outputTokens > 0) {
+        const costUsd = computeCostUsd(inputTokens, outputTokens);
+        const { error: logError } = await supabase.from("ai_usage_logs").insert({
+          user_id: user.id,
+          shop_id: shopId,
+          action: "analyze",
+          model: CLAUDE_SONNET_4.model,
+          input_tokens: inputTokens,
+          output_tokens: outputTokens,
+          cost_usd: costUsd,
+        });
+        if (logError) {
+          console.error("[analyze-creative] ai_usage_logs insert failed:", logError);
+        }
+      }
+    } catch (logErr) {
+      console.error("[analyze-creative] ai_usage_logs exception:", logErr);
+    }
+
     const analysisText = claudeData.content?.[0]?.text || "";
 
     // 9. Parse response
