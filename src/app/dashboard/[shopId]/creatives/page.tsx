@@ -1102,6 +1102,9 @@ export default function CreativesPage() {
     }));
   }, [creatives, benchmarks, cpaTarget]);
 
+  const [actionFilter, setActionFilter] = useState<
+    "excellent" | "good" | "average" | "weak" | null
+  >(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [sortKey, setSortKey] = useState<SortKey>("purchases");
@@ -1186,6 +1189,9 @@ export default function CreativesPage() {
     if (typeFilter !== "all") {
       result = result.filter((c) => c.creativeType === typeFilter);
     }
+    if (actionFilter !== null) {
+      result = result.filter((c) => c.engagement.actionLabel === actionFilter);
+    }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter(
@@ -1203,7 +1209,15 @@ export default function CreativesPage() {
     });
 
     return result;
-  }, [scored, statusFilter, typeFilter, searchQuery, sortKey, sortAsc]);
+  }, [
+    scored,
+    statusFilter,
+    typeFilter,
+    actionFilter,
+    searchQuery,
+    sortKey,
+    sortAsc,
+  ]);
 
   const summary = useMemo(() => {
     const totalSpend = filtered.reduce((s, c) => s + c.spend, 0);
@@ -1227,6 +1241,25 @@ export default function CreativesPage() {
       avgRoas,
     };
   }, [filtered]);
+
+  const engagementSummary = useMemo(() => {
+    const withScore = scored.filter(
+      (c) => c.engagement.engagementScore !== null
+    );
+    const spendWeightedSum = withScore.reduce(
+      (sum, c) => sum + c.engagement.engagementScore! * (c.spend || 0),
+      0
+    );
+    const totalSpendW = withScore.reduce((sum, c) => sum + (c.spend || 0), 0);
+    const avgScore = totalSpendW > 0 ? spendWeightedSum / totalSpendW : null;
+
+    const counts = { excellent: 0, good: 0, average: 0, weak: 0 };
+    for (const c of scored) {
+      const label = c.engagement.actionLabel;
+      if (label in counts) counts[label as keyof typeof counts]++;
+    }
+    return { avgScore, counts };
+  }, [scored]);
 
   const allAnalyzedCount = useMemo(
     () =>
@@ -1482,7 +1515,47 @@ export default function CreativesPage() {
 
       {/* Summary Bar */}
       {filtered.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          <SmallStat
+            label="Ø Engagement Score"
+            value={
+              engagementSummary.avgScore !== null
+                ? engagementSummary.avgScore.toFixed(1)
+                : "—"
+            }
+          />
+          <div className="rounded-xl border border-[#d2d2d7]/60 bg-white p-3">
+            <p className="text-[10px] uppercase tracking-wider text-[#86868b]">
+              Kreativy k akci
+            </p>
+            <div className="flex gap-2 mt-1 text-xs flex-wrap">
+              {(
+                [
+                  ["excellent", "⭐", "#34c759"],
+                  ["good", "✅", "#a3e635"],
+                  ["average", "⚠️", "#ff9f0a"],
+                  ["weak", "❌", "#ff3b30"],
+                ] as const
+              ).map(([label, icon, color]) => (
+                <button
+                  key={label}
+                  onClick={() =>
+                    setActionFilter(actionFilter === label ? null : label)
+                  }
+                  className={cn(
+                    "flex items-center gap-1 rounded-full px-2 py-0.5 font-semibold border transition-colors",
+                    actionFilter === label
+                      ? "bg-[#1d1d1f] text-white border-[#1d1d1f]"
+                      : "bg-white border-[#d2d2d7] hover:border-[#86868b]"
+                  )}
+                  style={actionFilter !== label ? { color: color } : undefined}
+                >
+                  <span>{icon}</span>
+                  <span>{engagementSummary.counts[label]}</span>
+                </button>
+              ))}
+            </div>
+          </div>
           <SmallStat
             label="Celková útrata"
             value={`${fmt(summary.totalSpend)} Kč`}
