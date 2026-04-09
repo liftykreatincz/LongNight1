@@ -57,6 +57,7 @@ import { useShopBenchmarks } from "@/hooks/useShopBenchmarks";
 import { useShopCpaTarget } from "@/hooks/useShopCpaTarget";
 import { EngagementBadge } from "@/components/creatives/engagement-badge";
 import { CpaTargetPopover } from "@/components/creatives/cpa-target-popover";
+import { useUnclassifiedCampaigns } from "@/hooks/useUnclassifiedCampaigns";
 import type { CampaignType } from "@/lib/campaign-classifier";
 import type { ScoredCreativeRow } from "./types";
 
@@ -1120,6 +1121,7 @@ export default function CreativesPage() {
   const analyzeMutation = useAnalyzeCreative(shopId);
 
   const { data: benchmarks } = useShopBenchmarks(shopId);
+  const { data: unclassifiedCount } = useUnclassifiedCampaigns(shopId);
   const {
     value: cpaTarget,
     isFallback: cpaIsFallback,
@@ -1504,6 +1506,16 @@ export default function CreativesPage() {
           </span>
         </div>
       )}
+
+      {unclassifiedCount && unclassifiedCount > 0 ? (
+        <div className="mt-2 rounded-xl border border-amber-200/60 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          ⚠️ {unclassifiedCount}{" "}
+          {unclassifiedCount === 1
+            ? "kampaň není klasifikována"
+            : "kampaní není klasifikováno"}
+          . Zkontroluj je v tree view a klikni na badge pro ruční přiřazení.
+        </div>
+      ) : null}
 
       {/* Filter Bar */}
       <div className="flex flex-wrap items-center gap-2">
