@@ -364,6 +364,34 @@ export async function POST(request: Request) {
       }
     }
 
+    // Auto-recompute benchmarks if stale (>24h) — non-fatal.
+    // Sync response must never fail because of a benchmark recompute error.
+    try {
+      const { data: lastBenchmark } = await supabase
+        .from("shop_benchmarks")
+        .select("computed_at")
+        .eq("shop_id", shopId)
+        .order("computed_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const staleHours = lastBenchmark?.computed_at
+        ? (Date.now() -
+            new Date(lastBenchmark.computed_at as string).getTime()) /
+          3_600_000
+        : Infinity;
+
+      if (staleHours > 24) {
+        const { recomputeBenchmarksForShop } = await import(
+          "@/lib/engagement-score/recompute-helper"
+        );
+        await recomputeBenchmarksForShop(supabase, shopId);
+      }
+    } catch (e) {
+      console.error("[sync] benchmark auto-recompute failed:", e);
+      // Non-fatal — sync response stays 200
+    }
+
     return NextResponse.json({
       success: true,
       ads_synced: rows.length,
