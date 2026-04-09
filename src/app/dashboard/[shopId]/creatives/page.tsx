@@ -49,6 +49,7 @@ import {
 } from "@/lib/engagement-score";
 import { useShopBenchmarks } from "@/hooks/useShopBenchmarks";
 import { useShopCpaTarget } from "@/hooks/useShopCpaTarget";
+import { EngagementBadge } from "@/components/creatives/engagement-badge";
 
 type ScoredCreativeRow = CreativeRow & { engagement: EngagementResult };
 
@@ -361,7 +362,7 @@ function CreativeCard({
   selected,
   onToggleSelected,
 }: {
-  creative: CreativeRow;
+  creative: ScoredCreativeRow;
   expanded: boolean;
   onToggle: () => void;
   onMediaClick: (c: CreativeRow, e: React.MouseEvent) => void;
@@ -439,6 +440,14 @@ function CreativeCard({
           {selected && <Check className="h-4 w-4" />}
         </button>
 
+        {/* Engagement badge */}
+        <div
+          className="absolute top-2 right-2 z-10"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <EngagementBadge result={c.engagement} size="lg" />
+        </div>
+
         {/* Clickable overlay */}
         {isClickable && (
           <button
@@ -484,7 +493,7 @@ function CreativeCard({
         <button
           onClick={handleAnalyze}
           className={cn(
-            "absolute top-2 right-2 h-8 w-8 rounded-full flex items-center justify-center backdrop-blur-md transition-all shadow-sm",
+            "absolute bottom-2 right-2 h-8 w-8 rounded-full flex items-center justify-center backdrop-blur-md transition-all shadow-sm",
             isAnalyzing
               ? "bg-amber-500/90"
               : hasAnalysis
@@ -521,6 +530,12 @@ function CreativeCard({
           {statusBadge(c.status)}
           {hasAnalysis && <ScoreBadge score={c.aiAnalysis!.score} />}
         </div>
+        <EngagementBadge
+          result={c.engagement}
+          size="sm"
+          showCategoryBars
+          className="mt-1"
+        />
       </div>
 
       {/* Key Metrics */}
