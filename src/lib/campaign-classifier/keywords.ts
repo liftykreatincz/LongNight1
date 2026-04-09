@@ -1,0 +1,15 @@
+export const SALE_KEYWORDS = [
+  "SALE", "SLEVA", "AKCE", "DISCOUNT",
+  "VÝPRODEJ", "VYPRODEJ", "DEAL",
+] as const;
+
+export const SEASONAL_KEYWORDS = [
+  "BF", "BLACKFRIDAY", "BLACK_FRIDAY", "BLACK-FRIDAY",
+  "CYBERMONDAY", "CYBER_MONDAY",
+  "XMAS", "VANOCE", "VÁNOCE", "CHRISTMAS",
+  "VALENTYN", "VALENTINE", "DENMATEK", "DEN_MATEK",
+  "VELIKONOCE", "EASTER", "HALLOWEEN",
+  "NEWYEAR", "NEW_YEAR", "SILVESTR",
+] as const;
+
+export const DISCOUNT_REGEX = /-\d{1,2}\s?%/;
