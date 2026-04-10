@@ -65,6 +65,41 @@ export interface EngagementResult {
   usedFallback: boolean;
   fallbackReason: string | null;
   effectiveCampaignType: CampaignType | "all";
+  metricDetails: MetricDetail[];
+  categoryWeights: Record<string, number>;
+}
+
+/** Human-readable Czech labels for each metric. */
+export const METRIC_LABELS: Record<MetricKey, string> = {
+  ctr_link: "CTR (link)",
+  ctr_all: "CTR (vše)",
+  hook_rate: "Hook rate",
+  thumb_stop: "Thumb stop",
+  avg_watch_pct: "Průměr shlédnutí",
+  thruplay_rate: "ThruPlay rate",
+  hold_rate: "Hold rate",
+  cpa: "CPA",
+  pno: "PNO",
+  cpm: "CPM",
+  cvr: "Konverzní poměr",
+  konv_per_1k: "Konverze / 1k imp.",
+};
+
+/** Category labels in Czech. */
+export const CATEGORY_LABELS: Record<keyof CategoryScores, string> = {
+  attention: "Pozornost",
+  retention: "Retence",
+  efficiency: "Efektivita",
+  performance: "Výkon",
+};
+
+/** Detail for a single metric's contribution to the score. */
+export interface MetricDetail {
+  metric: MetricKey;
+  category: keyof CategoryScores;
+  rawValue: number;
+  normalizedScore: number;
+  unit: string;
 }
 
 /** Metrics for which a LOWER value is better (CPA, PNO, CPM). */

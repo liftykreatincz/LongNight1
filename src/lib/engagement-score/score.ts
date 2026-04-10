@@ -4,6 +4,7 @@ import type {
   CategoryScores,
   EngagementResult,
   Format,
+  MetricDetail,
   MetricKey,
   MetricThresholds,
 } from "./types";
@@ -95,10 +96,18 @@ function derivedValue(row: ScoreInput, metric: MetricKey): number {
   }
 }
 
+function metricUnit(metric: MetricKey): string {
+  if (metric === "cpa" || metric === "cpm") return "Kč";
+  if (metric === "konv_per_1k") return "/ 1k";
+  return "%";
+}
+
 function categoryAverage(
   row: ScoreInput,
   metricThresholds: MetricThresholds,
-  metrics: MetricKey[]
+  metrics: MetricKey[],
+  categoryName?: keyof CategoryScores,
+  detailsOut?: MetricDetail[]
 ): number | null {
   const scores: number[] = [];
   for (const metric of metrics) {
@@ -106,7 +115,17 @@ function categoryAverage(
     if (!Number.isFinite(value)) continue;
     const thresholds = metricThresholds[metric];
     if (!thresholds) continue;
-    scores.push(normalize(value, thresholds, INVERTED_METRICS.has(metric)));
+    const norm = normalize(value, thresholds, INVERTED_METRICS.has(metric));
+    scores.push(norm);
+    if (detailsOut && categoryName) {
+      detailsOut.push({
+        metric,
+        category: categoryName,
+        rawValue: value,
+        normalizedScore: Math.round(norm * 10) / 10,
+        unit: metricUnit(metric),
+      });
+    }
   }
   if (scores.length === 0) return null;
   return scores.reduce((a, b) => a + b, 0) / scores.length;
@@ -189,6 +208,11 @@ export function scoreCreative(
     cpaTarget
   );
 
+  const weights =
+    format === "image"
+      ? IMAGE_WEIGHTS
+      : VIDEO_WEIGHTS;
+
   if (!filter.ok) {
     return {
       engagementScore: null,
@@ -204,8 +228,12 @@ export function scoreCreative(
       usedFallback: resolved.usedFallback,
       fallbackReason: resolved.fallbackReason,
       effectiveCampaignType: resolved.effectiveCampaignType,
+      metricDetails: [],
+      categoryWeights: weights,
     };
   }
+
+  const details: MetricDetail[] = [];
 
   const cats: CategoryScores =
     format === "image"
@@ -213,40 +241,54 @@ export function scoreCreative(
           attention: categoryAverage(
             row,
             metricThresholds,
-            IMAGE_CATEGORIES.attention
+            IMAGE_CATEGORIES.attention,
+            "attention",
+            details
           ),
           retention: null,
           efficiency: categoryAverage(
             row,
             metricThresholds,
-            IMAGE_CATEGORIES.efficiency
+            IMAGE_CATEGORIES.efficiency,
+            "efficiency",
+            details
           ),
           performance: categoryAverage(
             row,
             metricThresholds,
-            IMAGE_CATEGORIES.performance
+            IMAGE_CATEGORIES.performance,
+            "performance",
+            details
           ),
         }
       : {
           attention: categoryAverage(
             row,
             metricThresholds,
-            VIDEO_CATEGORIES.attention
+            VIDEO_CATEGORIES.attention,
+            "attention",
+            details
           ),
           retention: categoryAverage(
             row,
             metricThresholds,
-            VIDEO_CATEGORIES.retention
+            VIDEO_CATEGORIES.retention,
+            "retention",
+            details
           ),
           efficiency: categoryAverage(
             row,
             metricThresholds,
-            VIDEO_CATEGORIES.efficiency
+            VIDEO_CATEGORIES.efficiency,
+            "efficiency",
+            details
           ),
           performance: categoryAverage(
             row,
             metricThresholds,
-            VIDEO_CATEGORIES.performance
+            VIDEO_CATEGORIES.performance,
+            "performance",
+            details
           ),
         };
 
@@ -263,5 +305,7 @@ export function scoreCreative(
     usedFallback: resolved.usedFallback,
     fallbackReason: resolved.fallbackReason,
     effectiveCampaignType: resolved.effectiveCampaignType,
+    metricDetails: details,
+    categoryWeights: weights,
   };
 }
