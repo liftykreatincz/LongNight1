@@ -58,6 +58,7 @@ import { useShopCpaTarget } from "@/hooks/useShopCpaTarget";
 import { EngagementBadge } from "@/components/creatives/engagement-badge";
 import { CpaTargetPopover } from "@/components/creatives/cpa-target-popover";
 import { useUnclassifiedCampaigns } from "@/hooks/useUnclassifiedCampaigns";
+import { WindowSelector } from "@/components/creatives/window-selector";
 import type { CampaignType } from "@/lib/campaign-classifier";
 import type { ScoredCreativeRow } from "./types";
 
@@ -1531,6 +1532,8 @@ export default function CreativesPage() {
             )}
             Přepočítat benchmarky
           </button>
+          <div className="w-px h-6 bg-[#d2d2d7] mx-1" />
+          <WindowSelector shopId={shopId} />
           <button
             type="button"
             onClick={handleReclassify}
