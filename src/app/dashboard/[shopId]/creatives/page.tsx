@@ -59,6 +59,7 @@ import { EngagementBadge } from "@/components/creatives/engagement-badge";
 import { CpaTargetPopover } from "@/components/creatives/cpa-target-popover";
 import { useUnclassifiedCampaigns } from "@/hooks/useUnclassifiedCampaigns";
 import { WindowSelector } from "@/components/creatives/window-selector";
+import { DriftBanner } from "@/components/creatives/drift-banner";
 import type { CampaignType } from "@/lib/campaign-classifier";
 import type { ScoredCreativeRow } from "./types";
 
@@ -1556,6 +1557,8 @@ export default function CreativesPage() {
           </span>
         </div>
       )}
+
+      <DriftBanner shopId={shopId} />
 
       {unclassifiedCount && unclassifiedCount > 0 ? (
         <div className="mt-2 rounded-xl border border-amber-200/60 bg-amber-50 px-4 py-3 text-sm text-amber-900">
