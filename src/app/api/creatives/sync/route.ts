@@ -7,6 +7,8 @@ import {
   delay,
 } from "@/lib/meta-api";
 import { classifyCampaign, type CampaignType } from "@/lib/campaign-classifier";
+import { computeFatigue } from "@/lib/fatigue/compute";
+import type { DailyRow } from "@/lib/fatigue/types";
 
 const META_API_VERSION = "v21.0";
 const META_BASE = `https://graph.facebook.com/${META_API_VERSION}`;
@@ -52,6 +54,19 @@ interface MetaInsight {
   video_avg_time_watched_actions?: { action_type: string; value: string }[];
   date_start: string;
   date_stop: string;
+}
+
+interface MetaDailyInsight {
+  ad_id: string;
+  date_start: string;
+  date_stop: string;
+  spend: string;
+  impressions: string;
+  clicks: string;
+  ctr: string;
+  cpm: string;
+  frequency?: string;
+  actions?: { action_type: string; value: string }[];
 }
 
 function getVideoAvgWatchSeconds(
@@ -324,6 +339,31 @@ export async function POST(request: Request) {
       insightsMap.set(insight.ad_id, insight);
     }
 
+    // Step 2b — Fetch daily insights for fatigue (30-day window)
+    const dailySince = new Date();
+    dailySince.setDate(dailySince.getDate() - 30);
+    const dailyTimeRange = JSON.stringify({
+      since: dailySince.toISOString().split("T")[0],
+      until: now.toISOString().split("T")[0],
+    });
+
+    const dailyInsightsUrl = `${META_BASE}/${accountId}/insights?level=ad&time_increment=1&time_range=${encodeURIComponent(dailyTimeRange)}&fields=ad_id,date_start,date_stop,spend,impressions,clicks,ctr,cpm,frequency,actions&limit=500&access_token=${token}`;
+
+    let dailyInsights: MetaDailyInsight[] = [];
+    try {
+      dailyInsights = await fetchAllPagesWithDelay<MetaDailyInsight>(dailyInsightsUrl, 100);
+    } catch {
+      // Non-fatal — fatigue will be null if daily data fails
+    }
+
+    // Group daily insights by ad_id
+    const dailyByAd = new Map<string, MetaDailyInsight[]>();
+    for (const d of dailyInsights) {
+      const arr = dailyByAd.get(d.ad_id) || [];
+      arr.push(d);
+      dailyByAd.set(d.ad_id, arr);
+    }
+
     // Step 3 — Fetch video source URLs
     const videoIds: string[] = [];
     for (const ad of allAds) {
@@ -488,6 +528,75 @@ export async function POST(request: Request) {
           { error: `Upsert failed: ${upsertError.message}` },
           { status: 500 }
         );
+      }
+    }
+
+    // Step 5 — Upsert daily data and compute fatigue
+    if (dailyInsights.length > 0) {
+      const dailyRows: Array<{
+        shop_id: string;
+        ad_id: string;
+        date: string;
+        impressions: number;
+        clicks: number;
+        ctr: number;
+        cpm: number;
+        spend: number;
+        frequency: number;
+        purchases: number;
+        link_clicks: number;
+      }> = [];
+
+      for (const d of dailyInsights) {
+        const purchases = getActionValue(d.actions, "offsite_conversion.fb_pixel_purchase");
+        const linkClicks = getActionValue(d.actions, "link_click");
+        dailyRows.push({
+          shop_id: shopId,
+          ad_id: d.ad_id,
+          date: d.date_start,
+          impressions: parseInt(d.impressions, 10) || 0,
+          clicks: parseInt(d.clicks, 10) || 0,
+          ctr: parseFloat(d.ctr) || 0,
+          cpm: parseFloat(d.cpm) || 0,
+          spend: parseFloat(d.spend) || 0,
+          frequency: parseFloat(d.frequency ?? "0") || 0,
+          purchases,
+          link_clicks: linkClicks,
+        });
+      }
+
+      // Batch upsert daily rows
+      for (let i = 0; i < dailyRows.length; i += 200) {
+        const batch = dailyRows.slice(i, i + 200);
+        await supabase
+          .from("meta_ad_creative_daily")
+          .upsert(batch, { onConflict: "shop_id,ad_id,date" });
+      }
+
+      // Compute fatigue per ad
+      for (const [adId, dailyList] of dailyByAd.entries()) {
+        const fatigueDays: DailyRow[] = dailyList.map((d) => ({
+          date: d.date_start,
+          impressions: parseInt(d.impressions, 10) || 0,
+          clicks: parseInt(d.clicks, 10) || 0,
+          ctr: parseFloat(d.ctr) || 0,
+          cpm: parseFloat(d.cpm) || 0,
+          spend: parseFloat(d.spend) || 0,
+          frequency: parseFloat(d.frequency ?? "0") || 0,
+          purchases: getActionValue(d.actions, "offsite_conversion.fb_pixel_purchase"),
+          link_clicks: getActionValue(d.actions, "link_click"),
+        }));
+
+        const result = computeFatigue(fatigueDays);
+        await supabase
+          .from("meta_ad_creatives")
+          .update({
+            fatigue_score: result.score,
+            fatigue_signal: result.signal,
+            fatigue_computed_at: new Date().toISOString(),
+          })
+          .eq("shop_id", shopId)
+          .eq("ad_id", adId);
       }
     }
 
