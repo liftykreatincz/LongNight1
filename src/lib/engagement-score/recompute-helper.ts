@@ -31,22 +31,48 @@ export async function recomputeBenchmarksForShop(
   supabase: SupabaseClient,
   shopId: string
 ): Promise<RecomputeResult> {
-  const thirtyDaysAgo = new Date(
-    Date.now() - 30 * 24 * 60 * 60 * 1000
-  ).toISOString();
+  // 0. Get shop settings (CPA target + rolling window config)
+  const { data: shopRow } = await supabase
+    .from("shops")
+    .select("cpa_target_czk, benchmark_window_days")
+    .eq("id", shopId)
+    .maybeSingle();
+
+  const cpaTarget = Number(shopRow?.cpa_target_czk) || 300;
+
+  // benchmark_window_days: null → all-time, undefined/missing → 30, N → N
+  const rawWindow = shopRow?.benchmark_window_days;
+  const windowDays: number | null =
+    rawWindow === null ? null : typeof rawWindow === "number" ? rawWindow : 30;
 
   const selectCols =
     "creative_type, spend, impressions, clicks, link_clicks, purchases, purchase_revenue, video_views_3s, video_thruplay, video_plays, video_avg_watch_time, video_duration_seconds, cost_per_purchase, cpm, date_stop, campaign_id";
 
-  // 1. Try rolling window
-  let { data: rows } = await supabase
-    .from("meta_ad_creatives")
-    .select(selectCols)
-    .eq("shop_id", shopId)
-    .gte("date_stop", thirtyDaysAgo);
+  // 1. Fetch creatives with optional rolling window
+  let rows: Record<string, unknown>[] | null;
 
-  // Fallback: all-time (select same columns so TS inference matches)
-  if (!rows || rows.length === 0) {
+  if (windowDays !== null) {
+    const cutoffDate = new Date(
+      Date.now() - windowDays * 24 * 60 * 60 * 1000
+    ).toISOString();
+
+    const result = await supabase
+      .from("meta_ad_creatives")
+      .select(selectCols)
+      .eq("shop_id", shopId)
+      .gte("date_stop", cutoffDate);
+    rows = result.data;
+
+    // Fallback: all-time if windowed query returned nothing
+    if (!rows || rows.length === 0) {
+      const allTime = await supabase
+        .from("meta_ad_creatives")
+        .select(selectCols)
+        .eq("shop_id", shopId);
+      rows = allTime.data ?? [];
+    }
+  } else {
+    // null = all-time, no date filter
     const allTime = await supabase
       .from("meta_ad_creatives")
       .select(selectCols)
@@ -66,15 +92,6 @@ export async function recomputeBenchmarksForShop(
       campaignTypeMap.set(c.id as string, c.campaign_type as string);
     }
   }
-
-  // 2. Get CPA target
-  const { data: shopRow } = await supabase
-    .from("shops")
-    .select("cpa_target_czk")
-    .eq("id", shopId)
-    .maybeSingle();
-
-  const cpaTarget = Number(shopRow?.cpa_target_czk) || 300;
 
   // 3. Map to BenchmarkInput (carrying campaignType + real duration)
   const inputs: BenchmarkInput[] = (rows ?? []).map((r) => {
