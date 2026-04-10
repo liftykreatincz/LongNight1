@@ -261,10 +261,9 @@ function FloatingPopover({
   const [pos, setPos] = useState<{
     top: number;
     left: number;
-    side: "top" | "bottom";
   } | null>(null);
 
-  // Compute position on mount and on scroll/resize
+  // Use fixed positioning with viewport-relative coords from getBoundingClientRect
   const updatePosition = useCallback(() => {
     const anchor = anchorRef.current;
     const popover = popoverRef.current;
@@ -276,25 +275,23 @@ function FloatingPopover({
 
     // Prefer above; if not enough room, go below
     const spaceAbove = rect.top;
-    const side = spaceAbove > popH + POPOVER_GAP ? "top" : "bottom";
-
     const top =
-      side === "top"
-        ? rect.top + window.scrollY - popH - POPOVER_GAP
-        : rect.bottom + window.scrollY + POPOVER_GAP;
+      spaceAbove > popH + POPOVER_GAP
+        ? rect.top - popH - POPOVER_GAP
+        : rect.bottom + POPOVER_GAP;
 
     // Center horizontally on anchor, clamp to viewport
-    let left = rect.left + window.scrollX + rect.width / 2 - popW / 2;
+    let left = rect.left + rect.width / 2 - popW / 2;
     left = Math.max(8, Math.min(left, window.innerWidth - popW - 8));
 
-    setPos({ top, left, side });
+    setPos({ top, left });
   }, [anchorRef]);
 
   useLayoutEffect(() => {
     updatePosition();
   }, [updatePosition]);
 
-  // Update on scroll/resize
+  // Re-position on any scroll (including inner containers) and resize
   useEffect(() => {
     const handler = () => updatePosition();
     window.addEventListener("scroll", handler, true);
@@ -305,16 +302,19 @@ function FloatingPopover({
     };
   }, [updatePosition]);
 
+  if (typeof document === "undefined") return null;
+
   return createPortal(
     <div
       ref={popoverRef}
-      className="fixed z-[9999] animate-in fade-in-0 zoom-in-95 duration-100"
       style={{
-        position: "absolute",
+        position: "fixed",
+        zIndex: 9999,
         top: pos?.top ?? -9999,
         left: pos?.left ?? -9999,
         width: POPOVER_WIDTH,
         opacity: pos ? 1 : 0,
+        pointerEvents: "auto",
       }}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
