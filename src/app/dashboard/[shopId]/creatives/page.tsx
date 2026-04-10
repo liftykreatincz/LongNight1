@@ -60,6 +60,8 @@ import { CpaTargetPopover } from "@/components/creatives/cpa-target-popover";
 import { useUnclassifiedCampaigns } from "@/hooks/useUnclassifiedCampaigns";
 import { WindowSelector } from "@/components/creatives/window-selector";
 import { DriftBanner } from "@/components/creatives/drift-banner";
+import { FatigueBadge } from "@/components/creatives/fatigue-badge";
+import { FatigueBanner } from "@/components/creatives/fatigue-banner";
 import type { CampaignType } from "@/lib/campaign-classifier";
 import type { ScoredCreativeRow } from "./types";
 
@@ -460,11 +462,12 @@ function CreativeCard({
           {selected && <Check className="h-4 w-4" />}
         </button>
 
-        {/* Engagement badge */}
+        {/* Engagement + Fatigue badges */}
         <div
-          className="absolute top-2 right-2 z-10"
+          className="absolute top-2 right-2 z-10 flex items-center gap-1"
           onClick={(e) => e.stopPropagation()}
         >
+          <FatigueBadge score={c.fatigueScore} signal={c.fatigueSignal} />
           <EngagementBadge
             result={c.engagement}
             size="lg"
@@ -810,6 +813,9 @@ function CreativesOverviewTable({
                 onClick={() => handleSort("engagement_score")}
                 emphasized
               />
+              <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-[#86868b] uppercase tracking-wider">
+                Fatigue
+              </th>
               <TableSortTh
                 label="CPP"
                 active={sortKey === "costPerPurchase"}
@@ -1022,6 +1028,18 @@ function CreativesOverviewTable({
                       campaignType={c.campaignType}
                     />
                   </td>
+                  <td className="px-3 py-2">
+                    {c.fatigueScore !== null ? (
+                      <div className="flex items-center gap-1.5">
+                        <FatigueBadge score={c.fatigueScore} signal={c.fatigueSignal} />
+                        <span className="text-[12px] tabular-nums text-[#1d1d1f]">
+                          {c.fatigueScore}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-[12px] text-[#86868b]">—</span>
+                    )}
+                  </td>
                   <td
                     className={cn(
                       "px-3 py-2 text-right font-bold tabular-nums whitespace-nowrap",
@@ -1173,6 +1191,7 @@ export default function CreativesPage() {
   const [actionFilter, setActionFilter] = useState<
     "excellent" | "good" | "average" | "weak" | null
   >(null);
+  const [fatigueFilter, setFatigueFilter] = useState(false);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [sortKey, setSortKey] = useState<SortKey>("purchases");
@@ -1320,6 +1339,12 @@ export default function CreativesPage() {
     if (actionFilter !== null) {
       result = result.filter((c) => c.engagement.actionLabel === actionFilter);
     }
+    if (fatigueFilter) {
+      result = result.filter(
+        (c) =>
+          c.fatigueSignal === "fatigued" || c.fatigueSignal === "critical"
+      );
+    }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter(
@@ -1343,6 +1368,7 @@ export default function CreativesPage() {
     typeFilter,
     campaignTypeFilter,
     actionFilter,
+    fatigueFilter,
     searchQuery,
     sortKey,
     sortAsc,
@@ -1560,6 +1586,15 @@ export default function CreativesPage() {
 
       <DriftBanner shopId={shopId} />
 
+      <FatigueBanner
+        criticalCount={
+          scored.filter(
+            (c) => c.fatigueSignal === "critical" && c.status.toLowerCase() === "active"
+          ).length
+        }
+        onFilterFatigued={() => setFatigueFilter(true)}
+      />
+
       {unclassifiedCount && unclassifiedCount > 0 ? (
         <div className="mt-2 rounded-xl border border-amber-200/60 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           ⚠️ {unclassifiedCount}{" "}
@@ -1758,6 +1793,15 @@ export default function CreativesPage() {
               ))}
             </div>
           </div>
+          {fatigueFilter && (
+            <button
+              onClick={() => setFatigueFilter(false)}
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[13px] font-medium bg-orange-100 text-orange-800 border border-orange-300"
+            >
+              Unavene
+              <span className="text-orange-400 ml-1">×</span>
+            </button>
+          )}
           <SmallStat
             label="Celková útrata"
             value={`${fmt(summary.totalSpend)} Kč`}
