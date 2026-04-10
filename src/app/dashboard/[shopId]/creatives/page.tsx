@@ -33,6 +33,7 @@ import {
   Swords,
   ListTree,
   BarChart3,
+  PieChart,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -63,6 +64,9 @@ import { DriftBanner } from "@/components/creatives/drift-banner";
 import { FatigueBadge } from "@/components/creatives/fatigue-badge";
 import { FatigueBanner } from "@/components/creatives/fatigue-banner";
 import { AlertsBanner } from "@/components/creatives/alerts-banner";
+import { BudgetBubbleChart } from "@/components/creatives/budget-bubble-chart";
+import { BudgetTable } from "@/components/creatives/budget-table";
+import { computeBudgetRows } from "@/lib/budget-allocation";
 import { useCreativeAlerts, useDismissAlert } from "@/hooks/useCreativeAlerts";
 import type { CampaignType } from "@/lib/campaign-classifier";
 import type { ScoredCreativeRow } from "./types";
@@ -1224,11 +1228,12 @@ export default function CreativesPage() {
   const [initialScope, setInitialScope] = useState<
     "all" | "filtered" | "selected"
   >("all");
-  const [viewMode, setViewMode] = useState<"grid" | "table" | "tree">(() => {
+  const [viewMode, setViewMode] = useState<"grid" | "table" | "tree" | "budget">(() => {
     if (typeof window === "undefined") return "grid";
     const stored = localStorage.getItem("longnight-creatives-view-mode");
     if (stored === "table") return "table";
     if (stored === "tree") return "tree";
+    if (stored === "budget") return "budget";
     return "grid";
   });
 
@@ -1774,6 +1779,19 @@ export default function CreativesPage() {
           >
             <ListTree className="h-4 w-4" />
           </button>
+          <button
+            onClick={() => setViewMode("budget")}
+            className={cn(
+              "inline-flex items-center justify-center rounded-full px-3 py-1.5 transition-colors",
+              viewMode === "budget"
+                ? "bg-[#0071e3] text-white"
+                : "text-[#6e6e73] hover:text-[#1d1d1f]"
+            )}
+            title="Budget alokace"
+            aria-label="Budget"
+          >
+            <PieChart className="h-4 w-4" />
+          </button>
         </div>
       </div>
 
@@ -1945,6 +1963,17 @@ export default function CreativesPage() {
           onToggleSelected={toggleSelected}
         />
       )}
+
+      {/* Budget Allocation */}
+      {!isLoading && filtered.length > 0 && viewMode === "budget" && (() => {
+        const budgetRows = computeBudgetRows(filtered);
+        return (
+          <div className="space-y-4">
+            <BudgetBubbleChart rows={budgetRows} shopId={shopId} />
+            <BudgetTable rows={budgetRows} shopId={shopId} />
+          </div>
+        );
+      })()}
 
       {/* Floating selection bar */}
       {selectedIds.size > 0 && (
