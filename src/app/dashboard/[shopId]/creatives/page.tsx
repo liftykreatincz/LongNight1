@@ -1954,6 +1954,15 @@ export default function CreativesPage() {
             >
               Zrušit výběr
             </button>
+            {selectedIds.size >= 2 && selectedIds.size <= 4 && (
+              <Link
+                href={`/dashboard/${shopId}/creatives/compare?ids=${Array.from(selectedIds).join(",")}`}
+                className="inline-flex items-center gap-1.5 rounded-full border border-[#d2d2d7] bg-white px-3.5 py-2 text-sm font-semibold text-[#1d1d1f] shadow-sm transition-all hover:bg-[#f5f5f7]"
+              >
+                <BarChart3 className="h-4 w-4" />
+                Porovnat
+              </Link>
+            )}
             <button
               onClick={() => openMetaSheet("selected")}
               disabled={selectedAnalyzedAdIds.length < 3}
