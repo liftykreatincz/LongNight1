@@ -434,6 +434,7 @@ export async function POST(request: Request) {
         ad_id: ad.id,
         ad_name: ad.name,
         status: ad.status,
+        creative_type: videoId ? "video" : "image",
         campaign_id: ad.campaign?.id ?? null,
         campaign_name: ad.campaign?.name ?? null,
         adset_id: ad.adset?.id ?? null,
