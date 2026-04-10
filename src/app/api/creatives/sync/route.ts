@@ -9,6 +9,8 @@ import {
 import { classifyCampaign, type CampaignType } from "@/lib/campaign-classifier";
 import { computeFatigue } from "@/lib/fatigue/compute";
 import type { DailyRow } from "@/lib/fatigue/types";
+import { computeAlerts } from "@/lib/alerts/compute";
+import type { AlertInput } from "@/lib/alerts/types";
 
 const META_API_VERSION = "v21.0";
 const META_BASE = `https://graph.facebook.com/${META_API_VERSION}`;
@@ -598,6 +600,94 @@ export async function POST(request: Request) {
           .eq("shop_id", shopId)
           .eq("ad_id", adId);
       }
+    }
+
+    // Step 6 — Compute smart alerts (non-fatal)
+    try {
+      // Get CPA target for thresholds
+      const { data: shopData } = await supabase
+        .from("shops")
+        .select("cpa_target_czk")
+        .eq("id", shopId)
+        .maybeSingle();
+      const cpaTarget = Number(shopData?.cpa_target_czk) || 300;
+
+      // Build alert inputs from synced rows + fatigue + daily CTR change
+      const alertInputs: AlertInput[] = rows.map((r) => {
+        // Compute CTR change from daily data (last 7d vs prev 7d)
+        let ctrChange: number | null = null;
+        const daily = dailyByAd.get(r.ad_id);
+        if (daily && daily.length >= 14) {
+          const sorted = [...daily].sort((a, b) =>
+            a.date_start.localeCompare(b.date_start)
+          );
+          const last7 = sorted.slice(-7);
+          const prev7 = sorted.slice(-14, -7);
+          const avgLast = last7.reduce((s, d) => s + (parseFloat(d.ctr) || 0), 0) / 7;
+          const avgPrev = prev7.reduce((s, d) => s + (parseFloat(d.ctr) || 0), 0) / 7;
+          if (avgPrev > 0) ctrChange = avgLast / avgPrev;
+        }
+
+        return {
+          adId: r.ad_id,
+          adName: r.ad_name,
+          spend: r.spend,
+          purchases: r.purchases,
+          roas: r.spend > 0 ? r.purchase_revenue / r.spend : 0,
+          fatigueSignal: null, // will be filled below
+          ctrChange,
+        };
+      });
+
+      // Fill in fatigue signals from the fatigue computation
+      if (dailyInsights.length > 0) {
+        for (const input of alertInputs) {
+          const daily = dailyByAd.get(input.adId);
+          if (daily) {
+            const fatigueDays: DailyRow[] = daily.map((d) => ({
+              date: d.date_start,
+              impressions: parseInt(d.impressions, 10) || 0,
+              clicks: parseInt(d.clicks, 10) || 0,
+              ctr: parseFloat(d.ctr) || 0,
+              cpm: parseFloat(d.cpm) || 0,
+              spend: parseFloat(d.spend) || 0,
+              frequency: parseFloat(d.frequency ?? "0") || 0,
+              purchases: getActionValue(d.actions, "offsite_conversion.fb_pixel_purchase"),
+              link_clicks: getActionValue(d.actions, "link_click"),
+            }));
+            const result = computeFatigue(fatigueDays);
+            input.fatigueSignal = result.signal;
+          }
+        }
+      }
+
+      const newAlerts = computeAlerts({ inputs: alertInputs, cpaTarget });
+
+      if (newAlerts.length > 0) {
+        // Clear old undismissed alerts for this shop, then insert new ones
+        await supabase
+          .from("creative_alerts")
+          .delete()
+          .eq("shop_id", shopId)
+          .is("dismissed_at", null);
+
+        const alertRows = newAlerts.map((a) => ({
+          shop_id: shopId,
+          ad_id: a.ad_id,
+          alert_type: a.alert_type,
+          message: a.message,
+          severity: a.severity,
+        }));
+
+        for (let i = 0; i < alertRows.length; i += 200) {
+          await supabase
+            .from("creative_alerts")
+            .insert(alertRows.slice(i, i + 200));
+        }
+      }
+    } catch (e) {
+      console.error("[sync] alert computation failed:", e);
+      // Non-fatal — sync response stays 200
     }
 
     // Auto-recompute benchmarks if stale (>24h) — non-fatal.

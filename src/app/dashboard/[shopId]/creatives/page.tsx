@@ -62,6 +62,8 @@ import { WindowSelector } from "@/components/creatives/window-selector";
 import { DriftBanner } from "@/components/creatives/drift-banner";
 import { FatigueBadge } from "@/components/creatives/fatigue-badge";
 import { FatigueBanner } from "@/components/creatives/fatigue-banner";
+import { AlertsBanner } from "@/components/creatives/alerts-banner";
+import { useCreativeAlerts, useDismissAlert } from "@/hooks/useCreativeAlerts";
 import type { CampaignType } from "@/lib/campaign-classifier";
 import type { ScoredCreativeRow } from "./types";
 
@@ -1167,6 +1169,8 @@ export default function CreativesPage() {
 
   const { data: benchmarks } = useShopBenchmarks(shopId);
   const { data: unclassifiedCount } = useUnclassifiedCampaigns(shopId);
+  const { data: alerts } = useCreativeAlerts(shopId);
+  const dismissAlert = useDismissAlert(shopId);
   const {
     value: cpaTarget,
     isFallback: cpaIsFallback,
@@ -1610,6 +1614,13 @@ export default function CreativesPage() {
         }
         onFilterFatigued={() => setFatigueFilter(true)}
       />
+
+      {alerts && alerts.length > 0 && (
+        <AlertsBanner
+          alerts={alerts}
+          onDismiss={(id) => dismissAlert.mutate(id)}
+        />
+      )}
 
       {unclassifiedCount && unclassifiedCount > 0 ? (
         <div className="mt-2 rounded-xl border border-amber-200/60 bg-amber-50 px-4 py-3 text-sm text-amber-900">
