@@ -1,6 +1,13 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import {
+  useState,
+  useRef,
+  useCallback,
+  useLayoutEffect,
+  useEffect,
+} from "react";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import type {
   CategoryScores,
@@ -24,6 +31,9 @@ const SIZES = {
   md: { w: 40, text: "text-[13px] font-bold", stroke: 2.5 },
   lg: { w: 56, text: "text-[17px] font-extrabold", stroke: 3 },
 } as const;
+
+const POPOVER_WIDTH = 320;
+const POPOVER_GAP = 10;
 
 function CategoryBars({ cats }: { cats: CategoryScores }) {
   const rows: Array<[string, number | null]> = [
@@ -133,7 +143,7 @@ function ScoreBreakdown({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2.5">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="text-[13px] font-semibold text-[#1d1d1f]">
@@ -192,12 +202,12 @@ function ScoreBreakdown({
               {metrics.map((m) => (
                 <div
                   key={m.metric}
-                  className="flex items-center justify-between text-[11px]"
+                  className="flex items-center justify-between text-[11px] gap-3"
                 >
-                  <span className="text-[#86868b]">
+                  <span className="text-[#86868b] shrink-0">
                     {METRIC_LABELS[m.metric]}
                   </span>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 shrink-0">
                     <span className="text-[#1d1d1f] tabular-nums">
                       {formatValue(m.rawValue, m.unit)}
                     </span>
@@ -235,6 +245,88 @@ function ScoreBreakdown({
   );
 }
 
+/** Floating popover rendered via portal so it escapes overflow:hidden parents. */
+function FloatingPopover({
+  anchorRef,
+  children,
+  onMouseEnter,
+  onMouseLeave,
+}: {
+  anchorRef: React.RefObject<HTMLDivElement | null>;
+  children: React.ReactNode;
+  onMouseEnter: () => void;
+  onMouseLeave: () => void;
+}) {
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{
+    top: number;
+    left: number;
+    side: "top" | "bottom";
+  } | null>(null);
+
+  // Compute position on mount and on scroll/resize
+  const updatePosition = useCallback(() => {
+    const anchor = anchorRef.current;
+    const popover = popoverRef.current;
+    if (!anchor || !popover) return;
+
+    const rect = anchor.getBoundingClientRect();
+    const popH = popover.offsetHeight;
+    const popW = POPOVER_WIDTH;
+
+    // Prefer above; if not enough room, go below
+    const spaceAbove = rect.top;
+    const side = spaceAbove > popH + POPOVER_GAP ? "top" : "bottom";
+
+    const top =
+      side === "top"
+        ? rect.top + window.scrollY - popH - POPOVER_GAP
+        : rect.bottom + window.scrollY + POPOVER_GAP;
+
+    // Center horizontally on anchor, clamp to viewport
+    let left = rect.left + window.scrollX + rect.width / 2 - popW / 2;
+    left = Math.max(8, Math.min(left, window.innerWidth - popW - 8));
+
+    setPos({ top, left, side });
+  }, [anchorRef]);
+
+  useLayoutEffect(() => {
+    updatePosition();
+  }, [updatePosition]);
+
+  // Update on scroll/resize
+  useEffect(() => {
+    const handler = () => updatePosition();
+    window.addEventListener("scroll", handler, true);
+    window.addEventListener("resize", handler);
+    return () => {
+      window.removeEventListener("scroll", handler, true);
+      window.removeEventListener("resize", handler);
+    };
+  }, [updatePosition]);
+
+  return createPortal(
+    <div
+      ref={popoverRef}
+      className="fixed z-[9999] animate-in fade-in-0 zoom-in-95 duration-100"
+      style={{
+        position: "absolute",
+        top: pos?.top ?? -9999,
+        left: pos?.left ?? -9999,
+        width: POPOVER_WIDTH,
+        opacity: pos ? 1 : 0,
+      }}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
+      <div className="p-3 bg-white rounded-xl shadow-2xl border border-[#d2d2d7]">
+        {children}
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 export function EngagementBadge({
   result,
   size = "md",
@@ -251,6 +343,7 @@ export function EngagementBadge({
 
   const [open, setOpen] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const anchorRef = useRef<HTMLDivElement>(null);
 
   const handleEnter = useCallback(() => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -264,7 +357,8 @@ export function EngagementBadge({
 
   return (
     <div
-      className={cn("inline-flex flex-col items-center relative", className)}
+      ref={anchorRef}
+      className={cn("inline-flex flex-col items-center", className)}
       onMouseEnter={handleEnter}
       onMouseLeave={handleLeave}
     >
@@ -285,19 +379,15 @@ export function EngagementBadge({
       </div>
       {showCategoryBars && <CategoryBars cats={result.categories} />}
 
-      {/* Hover popover */}
+      {/* Floating popover via portal */}
       {open && (
-        <div
-          className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 p-3 bg-white rounded-xl shadow-xl border border-[#e5e5ea] animate-in fade-in-0 zoom-in-95 duration-100"
+        <FloatingPopover
+          anchorRef={anchorRef}
           onMouseEnter={handleEnter}
           onMouseLeave={handleLeave}
         >
           <ScoreBreakdown result={result} campaignType={campaignType} />
-          {/* Arrow */}
-          <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-px">
-            <div className="w-2.5 h-2.5 bg-white border-r border-b border-[#e5e5ea] rotate-45 -translate-y-1.5" />
-          </div>
-        </div>
+        </FloatingPopover>
       )}
     </div>
   );
