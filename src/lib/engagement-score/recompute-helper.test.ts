@@ -161,3 +161,99 @@ describe("recomputeBenchmarksForShop – rolling window", () => {
     expect(Math.abs(cutoffDate - expected)).toBeLessThan(5_000);
   });
 });
+
+describe("recomputeBenchmarksForShop – drift detection", () => {
+  it("detects drift when a metric changes >20% and updates shops.drift_detected_at", async () => {
+    const previousBenchmarks = [
+      {
+        format: "image",
+        campaign_type: "all",
+        metric: "ctr_link",
+        fail: 100,
+        hranice: 200,
+        good: 300,
+        top: 400,
+        sample_size: 20,
+        is_default: false,
+        computed_at: "2026-01-01T00:00:00Z",
+      },
+    ];
+
+    const { supabase, calls } = createMockSupabase({
+      shopRow: { cpa_target_czk: 300, benchmark_window_days: null },
+      benchmarkRows: previousBenchmarks,
+    });
+
+    const result = await recomputeBenchmarksForShop(supabase, "shop-1");
+
+    // Default benchmarks have very different values from our previous rows,
+    // so drift should be detected.
+    expect(result.driftDetected).toBe(true);
+
+    // Verify shops.update was called with drift_detected_at
+    const shopUpdates = calls.filter(
+      (c) => c.table === "shops" && c.method === "update"
+    );
+    expect(shopUpdates.length).toBeGreaterThanOrEqual(1);
+    const updateArg = shopUpdates[0].args[0] as Record<string, unknown>;
+    expect(updateArg).toHaveProperty("drift_detected_at");
+  });
+
+  it("returns driftDetected: false and skips snapshot when no previous rows exist", async () => {
+    const { supabase, calls } = createMockSupabase({
+      shopRow: { cpa_target_czk: 300, benchmark_window_days: null },
+      benchmarkRows: [], // no previous benchmarks
+    });
+
+    const result = await recomputeBenchmarksForShop(supabase, "shop-1");
+
+    expect(result.driftDetected).toBe(false);
+
+    // No snapshot insert should have happened
+    const snapshotInserts = calls.filter(
+      (c) => c.table === "shop_benchmark_snapshots" && c.method === "insert"
+    );
+    expect(snapshotInserts).toHaveLength(0);
+
+    // No shops.update for drift
+    const shopUpdates = calls.filter(
+      (c) => c.table === "shops" && c.method === "update"
+    );
+    expect(shopUpdates).toHaveLength(0);
+  });
+
+  it("inserts snapshot rows when previous benchmarks exist", async () => {
+    const previousBenchmarks = [
+      {
+        format: "image",
+        campaign_type: "all",
+        metric: "ctr_link",
+        fail: 100,
+        hranice: 200,
+        good: 300,
+        top: 400,
+        sample_size: 20,
+        is_default: false,
+        computed_at: "2026-01-01T00:00:00Z",
+      },
+    ];
+
+    const { supabase, calls } = createMockSupabase({
+      shopRow: { cpa_target_czk: 300, benchmark_window_days: null },
+      benchmarkRows: previousBenchmarks,
+    });
+
+    await recomputeBenchmarksForShop(supabase, "shop-1");
+
+    const snapshotInserts = calls.filter(
+      (c) => c.table === "shop_benchmark_snapshots" && c.method === "insert"
+    );
+    expect(snapshotInserts).toHaveLength(1);
+
+    const insertedRows = snapshotInserts[0].args[0] as Array<Record<string, unknown>>;
+    expect(insertedRows).toHaveLength(1);
+    expect(insertedRows[0]).toHaveProperty("snapshot_at");
+    expect(insertedRows[0].shop_id).toBe("shop-1");
+    expect(insertedRows[0].format).toBe("image");
+  });
+});

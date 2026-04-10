@@ -5,12 +5,14 @@ import {
   type BenchmarkOutputRow,
 } from "./compute-benchmarks";
 import { DEFAULT_BENCHMARKS } from "./defaults";
+import { detectDrift } from "./drift-detector";
 import type { Format, MetricKey } from "./types";
 
 export interface RecomputeResult {
   updated: number;
   image: { sampleSize: number; isDefault: boolean };
   video: { sampleSize: number; isDefault: boolean };
+  driftDetected: boolean;
 }
 
 interface BenchmarkRow extends BenchmarkOutputRow {
@@ -195,12 +197,39 @@ export async function recomputeBenchmarksForShop(
     }
   }
 
-  // 6. Delete + reinsert: segmentation means a previously populated
-  //    segment may disappear on recompute (sample drops below 15). A
-  //    narrow-conflict upsert would leave those stale rows behind, so we
-  //    do a wholesale replace per plan Appendix B (non-atomic but
-  //    acceptable for the benchmark recompute cadence).
+  // 6. Snapshot previous rows, delete + reinsert, detect drift.
+  let driftDetected = false;
+
   if (upsertRows.length > 0) {
+    // 6a. Fetch current benchmarks before deleting (for snapshot + drift)
+    const { data: previousRows } = await supabase
+      .from("shop_benchmarks")
+      .select(
+        "format, campaign_type, metric, fail, hranice, good, top, sample_size, is_default, computed_at"
+      )
+      .eq("shop_id", shopId);
+
+    // 6b. Snapshot previous rows into shop_benchmark_snapshots
+    if (previousRows && previousRows.length > 0) {
+      const snapshotNow = new Date().toISOString();
+      const snapshotRows = previousRows.map((r) => ({
+        shop_id: shopId,
+        snapshot_at: snapshotNow,
+        format: r.format as string,
+        campaign_type: r.campaign_type as string,
+        metric: r.metric as string,
+        fail: r.fail as number,
+        hranice: r.hranice as number,
+        good: r.good as number,
+        top: r.top as number,
+        sample_size: r.sample_size as number,
+        is_default: r.is_default as boolean,
+        computed_at: r.computed_at as string,
+      }));
+      await supabase.from("shop_benchmark_snapshots").insert(snapshotRows);
+    }
+
+    // 6c. Delete + reinsert
     const del = await supabase
       .from("shop_benchmarks")
       .delete()
@@ -208,11 +237,43 @@ export async function recomputeBenchmarksForShop(
     if (del.error) throw del.error;
     const ins = await supabase.from("shop_benchmarks").insert(upsertRows);
     if (ins.error) throw ins.error;
+
+    // 6d. Detect drift
+    if (previousRows && previousRows.length > 0) {
+      driftDetected = detectDrift(
+        previousRows.map((r) => ({
+          format: r.format as string,
+          campaign_type: r.campaign_type as string,
+          metric: r.metric as string,
+          fail: Number(r.fail),
+          hranice: Number(r.hranice),
+          good: Number(r.good),
+          top: Number(r.top),
+        })),
+        upsertRows.map((r) => ({
+          format: r.format,
+          campaign_type: r.campaign_type,
+          metric: r.metric,
+          fail: r.fail,
+          hranice: r.hranice,
+          good: r.good,
+          top: r.top,
+        }))
+      );
+
+      if (driftDetected) {
+        await supabase
+          .from("shops")
+          .update({ drift_detected_at: new Date().toISOString() })
+          .eq("id", shopId);
+      }
+    }
   }
 
   return {
     updated: upsertRows.length,
     image: { sampleSize: imageEligible, isDefault: isImageDefault },
     video: { sampleSize: videoEligible, isDefault: isVideoDefault },
+    driftDetected,
   };
 }
