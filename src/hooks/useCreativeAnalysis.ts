@@ -65,6 +65,9 @@ export interface CreativeRow {
   campaignType: CampaignType;
   campaignTypeSource: "auto" | "manual";
   videoDurationSeconds: number | null;
+  fatigueScore: number | null;
+  fatigueSignal: "none" | "rising" | "fatigued" | "critical" | null;
+  fatigueComputedAt: string | null;
 }
 
 export function useCreativeAnalysis(shopId: string) {
@@ -157,6 +160,10 @@ export function useCreativeAnalysis(shopId: string) {
           r.video_duration_seconds != null
             ? Number(r.video_duration_seconds)
             : null,
+        fatigueScore:
+          r.fatigue_score != null ? Number(r.fatigue_score) : null,
+        fatigueSignal: (r.fatigue_signal as CreativeRow["fatigueSignal"]) ?? null,
+        fatigueComputedAt: (r.fatigue_computed_at as string) ?? null,
         };
       });
     },

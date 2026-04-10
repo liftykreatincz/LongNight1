@@ -46,6 +46,9 @@ function makeCreative(overrides: Partial<CreativeRow> = {}): CreativeRow {
     campaignType: "evergreen",
     campaignTypeSource: "auto",
     videoDurationSeconds: null,
+    fatigueScore: null,
+    fatigueSignal: null,
+    fatigueComputedAt: null,
     ...overrides,
   };
 }
