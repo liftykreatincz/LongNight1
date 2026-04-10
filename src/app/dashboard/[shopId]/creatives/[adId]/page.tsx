@@ -161,7 +161,11 @@ export default function CreativeDetailPage() {
                 campaignType={c.campaignType}
               />
             )}
-            <FatigueBadge score={c.fatigueScore} signal={c.fatigueSignal} />
+            <FatigueBadge
+              score={c.fatigueScore}
+              signal={c.fatigueSignal}
+              dailyData={dailyData?.map((d) => ({ date: d.date, ctr: d.ctr }))}
+            />
           </div>
         </div>
       </div>

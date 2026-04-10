@@ -2,12 +2,14 @@
 
 import { useState, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
+import { LineChart, Line, ResponsiveContainer } from "recharts";
 import { Moon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Props {
   score: number | null;
   signal: "none" | "rising" | "fatigued" | "critical" | null;
+  dailyData?: { date: string; ctr: number }[];
   className?: string;
 }
 
@@ -17,7 +19,7 @@ const SIGNAL_CONFIG = {
   critical: { color: "#ff3b30", label: "Kriticka unava" },
 } as const;
 
-export function FatigueBadge({ score, signal, className }: Props) {
+export function FatigueBadge({ score, signal, dailyData, className }: Props) {
   if (!signal || signal === "none" || score === null) return null;
 
   const config = SIGNAL_CONFIG[signal];
@@ -55,6 +57,7 @@ export function FatigueBadge({ score, signal, className }: Props) {
             anchorRef={anchorRef}
             score={score}
             config={config}
+            dailyData={dailyData}
             onMouseEnter={handleEnter}
             onMouseLeave={handleLeave}
           />,
@@ -68,12 +71,14 @@ function FatigueTooltip({
   anchorRef,
   score,
   config,
+  dailyData,
   onMouseEnter,
   onMouseLeave,
 }: {
   anchorRef: React.RefObject<HTMLDivElement | null>;
   score: number;
   config: { color: string; label: string };
+  dailyData?: { date: string; ctr: number }[];
   onMouseEnter: () => void;
   onMouseLeave: () => void;
 }) {
@@ -130,6 +135,21 @@ function FatigueTooltip({
             }}
           />
         </div>
+        {dailyData && dailyData.length > 2 && (
+          <div className="h-10 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={dailyData}>
+                <Line
+                  type="monotone"
+                  dataKey="ctr"
+                  stroke={config.color}
+                  strokeWidth={1.5}
+                  dot={false}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
         <p className="text-[10px] text-[#86868b]">Pocitano z poslednich 30 dni</p>
       </div>
     </div>

@@ -383,6 +383,7 @@ function CreativeCard({
   analyzeMutation,
   selected,
   onToggleSelected,
+  shopId,
 }: {
   creative: ScoredCreativeRow;
   expanded: boolean;
@@ -391,6 +392,7 @@ function CreativeCard({
   analyzeMutation: ReturnType<typeof useAnalyzeCreative>;
   selected: boolean;
   onToggleSelected: (adId: string) => void;
+  shopId: string;
 }) {
   const hasPlayableVideo = c.creativeType === "video" && c.videoUrl;
   const hasClickableImage = c.creativeType === "image" && c.thumbnailUrl;
@@ -576,6 +578,16 @@ function CreativeCard({
         <MetricRow label="CPP" value={`${fmtDec(c.costPerPurchase)} Kč`} />
       </div>
 
+      <div className="px-3 pb-2">
+        <Link
+          href={`/dashboard/${shopId}/creatives/${c.adId}`}
+          className="text-[12px] text-[#0071e3] hover:text-[#0077ed] font-medium"
+          onClick={(e) => e.stopPropagation()}
+        >
+          Detail →
+        </Link>
+      </div>
+
       {/* Expanded Detail */}
       {expanded && (
         <div className="px-3 pb-3 animate-in fade-in slide-in-from-top-2 duration-200">
@@ -708,12 +720,14 @@ function CreativesOverviewTable({
   analyzeMutation,
   selectedIds,
   onToggleSelected,
+  shopId,
 }: {
   creatives: ScoredCreativeRow[];
   onMediaClick: (c: CreativeRow, e: React.MouseEvent) => void;
   analyzeMutation: ReturnType<typeof useAnalyzeCreative>;
   selectedIds: Set<string>;
   onToggleSelected: (adId: string) => void;
+  shopId: string;
 }) {
   const allVisibleSelected =
     creatives.length > 0 && creatives.every((c) => selectedIds.has(c.adId));
@@ -973,12 +987,14 @@ function CreativesOverviewTable({
                         )}
                       />
                       <div className="min-w-0">
-                        <p
-                          className="text-sm font-semibold text-[#1d1d1f] truncate"
+                        <Link
+                          href={`/dashboard/${shopId}/creatives/${c.adId}`}
+                          className="text-sm font-semibold text-[#1d1d1f] hover:text-[#0071e3] truncate block"
                           title={c.adName}
+                          onClick={(e) => e.stopPropagation()}
                         >
                           {c.adName}
-                        </p>
+                        </Link>
                         <p
                           className="text-[10px] text-[#86868b] truncate"
                           title={c.campaignName}
@@ -1889,6 +1905,7 @@ export default function CreativesPage() {
               analyzeMutation={analyzeMutation}
               selected={selectedIds.has(c.adId)}
               onToggleSelected={toggleSelected}
+              shopId={shopId}
             />
           ))}
         </div>
@@ -1902,6 +1919,7 @@ export default function CreativesPage() {
           analyzeMutation={analyzeMutation}
           selectedIds={selectedIds}
           onToggleSelected={toggleSelected}
+          shopId={shopId}
         />
       )}
 
