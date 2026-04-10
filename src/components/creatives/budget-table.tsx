@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import type { BudgetRow, Recommendation } from "@/lib/budget-allocation";
 
@@ -58,11 +57,10 @@ export function BudgetTable({ rows, shopId }: Props) {
                       className="flex items-center gap-2.5 hover:underline"
                     >
                       {r.thumbnailUrl ? (
-                        <Image
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img
                           src={r.thumbnailUrl}
                           alt=""
-                          width={32}
-                          height={32}
                           className="h-8 w-8 rounded-md object-cover"
                         />
                       ) : (
