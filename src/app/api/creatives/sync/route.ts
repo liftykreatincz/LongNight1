@@ -23,7 +23,6 @@ interface MetaAd {
     id?: string;
     thumbnail_url?: string;
     image_url?: string;
-    effective_image_url?: string;
     object_story_spec?: {
       video_data?: { video_id?: string };
     };
@@ -221,7 +220,7 @@ export async function POST(request: Request) {
       : `act_${rawAccountId}`;
 
     // Step 1 — Fetch ALL ads with pagination (smaller pages to avoid Meta size limit)
-    const adsUrl = `${META_BASE}/${accountId}/ads?fields=name,status,creative{id,thumbnail_url,image_url,effective_image_url,object_story_spec},adset{id,name},campaign{id,name}&thumbnail_width=720&limit=100&access_token=${token}`;
+    const adsUrl = `${META_BASE}/${accountId}/ads?fields=name,status,creative{id,thumbnail_url,image_url,object_story_spec},adset{id,name},campaign{id,name}&thumbnail_width=720&limit=100&access_token=${token}`;
 
     let allAds: MetaAd[];
     try {
@@ -541,7 +540,7 @@ export async function POST(request: Request) {
         adset_name: ad.adset?.name ?? null,
         thumbnail_url: videoId
           ? (videoThumbnailMap.get(videoId) || ad.creative?.thumbnail_url || null)
-          : (ad.creative?.image_url || ad.creative?.effective_image_url || ad.creative?.thumbnail_url || null),
+          : (ad.creative?.image_url || ad.creative?.thumbnail_url || null),
         video_url: videoUrl,
         spend,
         impressions: insight ? parseInt(insight.impressions, 10) || 0 : 0,
