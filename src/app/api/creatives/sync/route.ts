@@ -218,12 +218,12 @@ export async function POST(request: Request) {
       ? rawAccountId
       : `act_${rawAccountId}`;
 
-    // Step 1 — Fetch ALL ads with pagination
-    const adsUrl = `${META_BASE}/${accountId}/ads?fields=name,status,creative{id,thumbnail_url,object_story_spec},adset{id,name},campaign{id,name}&limit=500&access_token=${token}`;
+    // Step 1 — Fetch ALL ads with pagination (smaller pages to avoid Meta size limit)
+    const adsUrl = `${META_BASE}/${accountId}/ads?fields=name,status,creative{id,thumbnail_url,object_story_spec},adset{id,name},campaign{id,name}&limit=100&access_token=${token}`;
 
     let allAds: MetaAd[];
     try {
-      allAds = await fetchAllPages<MetaAd>(adsUrl);
+      allAds = await fetchAllPagesWithDelay<MetaAd>(adsUrl, 200);
     } catch (e) {
       return NextResponse.json(
         { error: `Failed to fetch ads: ${(e as Error).message}` },
@@ -232,7 +232,7 @@ export async function POST(request: Request) {
     }
 
     // Step 1b — Fetch ALL campaigns with pagination and classify them
-    const campaignsUrl = `${META_BASE}/${accountId}/campaigns?fields=name,status,start_time,stop_time&limit=500&access_token=${token}`;
+    const campaignsUrl = `${META_BASE}/${accountId}/campaigns?fields=name,status,start_time,stop_time&limit=200&access_token=${token}`;
 
     let allCampaigns: MetaCampaign[];
     try {
@@ -340,7 +340,7 @@ export async function POST(request: Request) {
     const allInsights: MetaInsight[] = [];
     for (const window of timeWindows) {
       const timeRange = JSON.stringify({ since: window.since, until: window.until });
-      const insightsUrl = `${META_BASE}/${accountId}/insights?level=ad&time_range=${encodeURIComponent(timeRange)}&fields=${INSIGHT_FIELDS}&limit=500&access_token=${token}`;
+      const insightsUrl = `${META_BASE}/${accountId}/insights?level=ad&time_range=${encodeURIComponent(timeRange)}&fields=${INSIGHT_FIELDS}&limit=200&access_token=${token}`;
       try {
         const chunk = await fetchAllPagesWithDelay<MetaInsight>(insightsUrl, 100);
         allInsights.push(...chunk);
@@ -400,7 +400,7 @@ export async function POST(request: Request) {
       until: now.toISOString().split("T")[0],
     });
 
-    const dailyInsightsUrl = `${META_BASE}/${accountId}/insights?level=ad&time_increment=1&time_range=${encodeURIComponent(dailyTimeRange)}&fields=ad_id,date_start,date_stop,spend,impressions,clicks,ctr,cpm,frequency,actions&limit=500&access_token=${token}`;
+    const dailyInsightsUrl = `${META_BASE}/${accountId}/insights?level=ad&time_increment=1&time_range=${encodeURIComponent(dailyTimeRange)}&fields=ad_id,date_start,date_stop,spend,impressions,clicks,ctr,cpm,frequency,actions&limit=200&access_token=${token}`;
 
     let dailyInsights: MetaDailyInsight[] = [];
     try {
