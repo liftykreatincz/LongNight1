@@ -23,6 +23,7 @@ interface MetaAd {
     id?: string;
     thumbnail_url?: string;
     image_url?: string;
+    effective_image_url?: string;
     object_story_spec?: {
       video_data?: { video_id?: string };
     };
@@ -220,7 +221,7 @@ export async function POST(request: Request) {
       : `act_${rawAccountId}`;
 
     // Step 1 — Fetch ALL ads with pagination (smaller pages to avoid Meta size limit)
-    const adsUrl = `${META_BASE}/${accountId}/ads?fields=name,status,creative{id,thumbnail_url,image_url,object_story_spec},adset{id,name},campaign{id,name}&thumbnail_width=720&limit=100&access_token=${token}`;
+    const adsUrl = `${META_BASE}/${accountId}/ads?fields=name,status,creative{id,thumbnail_url,image_url,effective_image_url,object_story_spec},adset{id,name},campaign{id,name}&thumbnail_width=720&limit=100&access_token=${token}`;
 
     let allAds: MetaAd[];
     try {
@@ -427,20 +428,25 @@ export async function POST(request: Request) {
     }
 
     const videoSourceMap = new Map<string, string>();
+    const videoThumbnailMap = new Map<string, string>();
     const uniqueVideoIds = [...new Set(videoIds)];
 
     for (let i = 0; i < uniqueVideoIds.length; i += 50) {
       const batch = uniqueVideoIds.slice(i, i + 50).join(",");
-      const videoUrl = `${META_BASE}/?ids=${batch}&fields=source&access_token=${token}`;
+      const videoUrl = `${META_BASE}/?ids=${batch}&fields=source,thumbnails.limit(1){uri,width,height}&access_token=${token}`;
 
       try {
         const res = await fetch(videoUrl);
         if (res.ok) {
           const json = await res.json();
           for (const [id, data] of Object.entries(json)) {
-            const videoData = data as { source?: string };
+            const videoData = data as { source?: string; thumbnails?: { data?: { uri?: string }[] } };
             if (videoData.source) {
               videoSourceMap.set(id, videoData.source);
+            }
+            const thumbUri = videoData.thumbnails?.data?.[0]?.uri;
+            if (thumbUri) {
+              videoThumbnailMap.set(id, thumbUri);
             }
           }
         }
@@ -533,7 +539,9 @@ export async function POST(request: Request) {
         campaign_name: ad.campaign?.name ?? null,
         adset_id: ad.adset?.id ?? null,
         adset_name: ad.adset?.name ?? null,
-        thumbnail_url: ad.creative?.image_url || ad.creative?.thumbnail_url || null,
+        thumbnail_url: videoId
+          ? (videoThumbnailMap.get(videoId) || ad.creative?.thumbnail_url || null)
+          : (ad.creative?.image_url || ad.creative?.effective_image_url || ad.creative?.thumbnail_url || null),
         video_url: videoUrl,
         spend,
         impressions: insight ? parseInt(insight.impressions, 10) || 0 : 0,
