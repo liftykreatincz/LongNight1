@@ -446,6 +446,10 @@ function CreativeCard({
             src={c.thumbnailUrl}
             alt={c.adName}
             className="object-cover w-full h-full"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+              e.currentTarget.parentElement?.classList.add('flex', 'items-center', 'justify-center');
+            }}
           />
         ) : (
           <ImageIcon className="h-10 w-10 text-[#86868b]" />
@@ -967,6 +971,9 @@ function CreativesOverviewTable({
                           alt={c.adName}
                           loading="lazy"
                           className="h-full w-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                          }}
                         />
                       ) : (
                         <div className="h-full w-full flex items-center justify-center">

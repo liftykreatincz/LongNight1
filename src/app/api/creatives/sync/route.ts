@@ -312,33 +312,84 @@ export async function POST(request: Request) {
       }
     }
 
-    // Step 2 — Fetch ALL ad insights with pagination (36-month window)
+    // Step 2 — Fetch ad insights in 6-month chunks to avoid Meta API size limits
     const now = new Date();
-    const sinceDate = new Date(
+    const globalSince = new Date(
       now.getFullYear() - 3,
       now.getMonth(),
       now.getDate()
     );
-    const since = sinceDate.toISOString().split("T")[0];
-    const until = now.toISOString().split("T")[0];
-    const timeRange = JSON.stringify({ since, until });
 
-    const insightsUrl = `${META_BASE}/${accountId}/insights?level=ad&time_range=${encodeURIComponent(timeRange)}&fields=ad_id,ad_name,spend,impressions,reach,clicks,ctr,cpc,cpm,actions,cost_per_action_type,action_values,frequency,video_play_actions,video_avg_time_watched_actions,date_start,date_stop&limit=500&access_token=${token}`;
+    const INSIGHT_FIELDS = "ad_id,ad_name,spend,impressions,reach,clicks,ctr,cpc,cpm,actions,cost_per_action_type,action_values,frequency,video_play_actions,video_avg_time_watched_actions,date_start,date_stop";
 
-    let allInsights: MetaInsight[];
-    try {
-      allInsights = await fetchAllPagesWithDelay<MetaInsight>(insightsUrl, 100);
-    } catch (e) {
-      return NextResponse.json(
-        { error: `Failed to fetch insights: ${(e as Error).message}` },
-        { status: 502 }
-      );
+    const timeWindows: { since: string; until: string }[] = [];
+    {
+      let cursor = new Date(globalSince);
+      while (cursor < now) {
+        const windowEnd = new Date(cursor.getFullYear(), cursor.getMonth() + 6, cursor.getDate());
+        const effectiveEnd = windowEnd > now ? now : windowEnd;
+        timeWindows.push({
+          since: cursor.toISOString().split("T")[0],
+          until: effectiveEnd.toISOString().split("T")[0],
+        });
+        cursor = new Date(effectiveEnd);
+        cursor.setDate(cursor.getDate() + 1);
+      }
     }
 
-    // Build insights lookup by ad_id
+    const allInsights: MetaInsight[] = [];
+    for (const window of timeWindows) {
+      const timeRange = JSON.stringify({ since: window.since, until: window.until });
+      const insightsUrl = `${META_BASE}/${accountId}/insights?level=ad&time_range=${encodeURIComponent(timeRange)}&fields=${INSIGHT_FIELDS}&limit=500&access_token=${token}`;
+      try {
+        const chunk = await fetchAllPagesWithDelay<MetaInsight>(insightsUrl, 100);
+        allInsights.push(...chunk);
+      } catch (e) {
+        console.error(`[sync] Insights chunk ${window.since}..${window.until} failed:`, e);
+      }
+      await delay(200);
+    }
+
+    // Merge insights per ad_id across time windows
+    const mergeActions = (
+      existing: { action_type: string; value: string }[] | undefined,
+      incoming: { action_type: string; value: string }[] | undefined
+    ): { action_type: string; value: string }[] => {
+      if (!incoming) return existing || [];
+      if (!existing) return incoming;
+      const map: Record<string, number> = {};
+      for (const a of existing) map[a.action_type] = (map[a.action_type] || 0) + (parseFloat(a.value) || 0);
+      for (const a of incoming) map[a.action_type] = (map[a.action_type] || 0) + (parseFloat(a.value) || 0);
+      return Object.entries(map).map(([action_type, value]) => ({ action_type, value: String(value) }));
+    };
+
     const insightsMap = new Map<string, MetaInsight>();
-    for (const insight of allInsights) {
-      insightsMap.set(insight.ad_id, insight);
+    for (const ins of allInsights) {
+      const prev = insightsMap.get(ins.ad_id);
+      if (!prev) {
+        insightsMap.set(ins.ad_id, { ...ins });
+        continue;
+      }
+      const pSpend = parseFloat(prev.spend) || 0;
+      const iSpend = parseFloat(ins.spend) || 0;
+      const spend = pSpend + iSpend;
+      const imps = (parseInt(prev.impressions) || 0) + (parseInt(ins.impressions) || 0);
+      const clicks = (parseInt(prev.clicks) || 0) + (parseInt(ins.clicks) || 0);
+      prev.spend = String(spend);
+      prev.impressions = String(imps);
+      prev.reach = String((parseInt(prev.reach) || 0) + (parseInt(ins.reach) || 0));
+      prev.clicks = String(clicks);
+      prev.ctr = imps > 0 ? String((clicks / imps) * 100) : "0";
+      prev.cpc = clicks > 0 ? String(spend / clicks) : "0";
+      prev.cpm = imps > 0 ? String((spend / imps) * 1000) : "0";
+      prev.frequency = String((parseFloat(prev.frequency ?? "0") || 0) + (parseFloat(ins.frequency ?? "0") || 0));
+      prev.actions = mergeActions(prev.actions, ins.actions);
+      prev.cost_per_action_type = undefined;
+      prev.action_values = mergeActions(prev.action_values, ins.action_values);
+      prev.video_play_actions = mergeActions(prev.video_play_actions, ins.video_play_actions);
+      prev.video_avg_time_watched_actions = ins.video_avg_time_watched_actions || prev.video_avg_time_watched_actions;
+      if (!prev.date_start || ins.date_start < prev.date_start) prev.date_start = ins.date_start;
+      if (!prev.date_stop || ins.date_stop > prev.date_stop) prev.date_stop = ins.date_stop;
     }
 
     // Step 2b — Fetch daily insights for fatigue (30-day window)
